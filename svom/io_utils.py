@@ -8,7 +8,7 @@ from astropy import log
 # SVOM SPECIFIC imports
 from svom.utils import En2Ch
 from svom.utils import Ch2En
-import svom.plot_utils
+import svom.plot_utils as plot_utils
 
 #####################################
 ####### READING FUNCTIONS ###########

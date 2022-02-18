@@ -22,7 +22,7 @@ from svom.io_utils import read_lines
 from svom.io_utils import write_rel
 # from svom.utils import En2Ch
 # from svom.utils import Ch2En
-import svom.plot_utils
+import svom.plot_utils as plot_utils
 from svom.fit_utils import FittingEngine
 
 
@@ -129,7 +129,7 @@ def mainrun(input_relation, output_relation,
     # SPECTRUM WITHOUT REDISTRIBUTION -- FOR DEVELOPMENT ONLY
     #    Option useful to visualize relative line strength (to use with --plotall)
     if args.showrawspec:
-        from io_utils import read_rawspec
+        from svom.io_utils import read_rawspec
         rawspec_file = path.join(workdir, "BACKGROUNDS/spectrum_NoRedistribution.fits")
         rawspec = read_rawspec(rawspec_file, rootname, plotspec=args.plots)
     else:
@@ -324,7 +324,9 @@ def mainrun(input_relation, output_relation,
 if __name__ == '__main__':
 
     # Working directory root
-    workdir = path.dirname(path.dirname(path.realpath(__name__)))
+    workdir = path.dirname(path.realpath(__name__))
+
+    print(workdir)
 
     # Input gain-offset matrix
     filerel_in  = path.join(workdir, "RELATION/{}".format(args.matrix))

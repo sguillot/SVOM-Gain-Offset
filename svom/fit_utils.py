@@ -25,7 +25,7 @@ from lmfit import Parameters, minimize,  fit_report
 # from svom.io_utils import read_lines
 # from svom.utils import Ch2En
 from svom.utils import En2Ch
-import svom.plot_utils
+import svom.plot_utils as plot_utils
 
 # Warning suppress
 import warnings
