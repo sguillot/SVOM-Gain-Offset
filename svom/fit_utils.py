@@ -307,6 +307,8 @@ class FittingEngine(object):
         # Now fitting the linear relation between fitted centroids (in channels) 
         #    and true energies of spectral lines
 
+        # TODO REMOVE CENTROIDS WITH LARGE ERRORS
+
         # Initial guess are the input gain and offset
         guesses = np.array([gain0, offset0])
 
