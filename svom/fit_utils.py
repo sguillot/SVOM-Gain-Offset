@@ -302,12 +302,18 @@ class FittingEngine(object):
             err_centroids = None                                                                  # If one of them is None, they are all None.
 
         # LargeErrors = np.sum((err_centroids/fit_centroids)>0.05)
-        LargeErrors = (err_centroids / fit_centroids) > 0.05
+        LargeErrors = (err_centroids / fit_centroids) > 0.05 ## 0.05
+        #if LargeErrors.any():
+        #    print(LargeErrors)
 
-        # Now fitting the linear relation between fitted centroids (in channels) 
+        # REMOVE CENTROIDS WITH LARGE ERRORS
+        fit_ini_centroids = self.all_ini_centroids[~LargeErrors]
+        fit_centroids = fit_centroids[~LargeErrors]
+        err_centroids = err_centroids[~LargeErrors]
+
+        # Now fitting the linear relation between fitted centroids (in channels)
         #    and true energies of spectral lines
 
-        # TODO REMOVE CENTROIDS WITH LARGE ERRORS
 
         # Initial guess are the input gain and offset
         guesses = np.array([gain0, offset0])
@@ -315,9 +321,9 @@ class FittingEngine(object):
         # Using CurveFit:
         #   x: True lines in keV, y: fitted centroids in channel, yerr: centroids errors (in channel)
         #   Output:  gain in chan/keV, offset in channels            
-        LinRelPar, LinRelCov = curve_fit(LinearRelation, self.all_ini_centroids, fit_centroids,
+        LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids, fit_centroids,
                                          p0=guesses, sigma=err_centroids, absolute_sigma=False)
-        # LinRelPar, LinRelCov = curve_fit(LinearRelation, self.all_ini_centroids, fit_centroids,
+        # LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids, fit_centroids,
         #                                  p0=guesses, sigma=None, absolute_sigma=False)
         #  Uncertainties are the square of the diagonal indices of the covariance matrix
         LinRelErrors = np.sqrt(np.diag(LinRelCov))
@@ -329,7 +335,7 @@ class FittingEngine(object):
         offs_err = np.abs(offs_fit) * np.sqrt(np.power((LinRelErrors[1]/LinRelPar[1]), 2)+np.power((LinRelErrors[0]/LinRelPar[0]), 2))  # propagate the uncertainties of gain in channel into keV
 
         # Check for large deviations, and exclude bad centroids.
-        FitRel = np.array(LinearRelation(self.all_ini_centroids, *LinRelPar))                           # Calculate the best-fit energy-channel relation
+        FitRel = np.array(LinearRelation(fit_ini_centroids, *LinRelPar))                           # Calculate the best-fit energy-channel relation
         cent_mean, cent_median, cent_stddev = sigma_clipped_stats((fit_centroids-FitRel),
                                                                   maxiters=3, sigma_lower=3, sigma_upper=3)  # Calculate the statistics of centroids values
         bad_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                          # Get the indices of those that deviate by >4 sigma
@@ -341,7 +347,7 @@ class FittingEngine(object):
 
         # Plot channel energy relation from best fit centroids and true values
         if self.plots:
-            rel_figure = plot_utils.plot_relation(self.all_ini_centroids, fit_centroids,
+            rel_figure = plot_utils.plot_relation(fit_ini_centroids, fit_centroids,
                                                   err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx, stats=[cent_mean, cent_stddev])
             rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
             rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}.png".format(self.rootname, int(idx0)))
@@ -353,7 +359,7 @@ class FittingEngine(object):
 
             # Initial guess and linear fit with curve fit, like above, but only for the good_idx
             guesses = LinRelPar
-            LinRelPar, LinRelCov = curve_fit(LinearRelation, self.all_ini_centroids[good_idx], fit_centroids[good_idx],
+            LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids[good_idx], fit_centroids[good_idx],
                                              p0=guesses, sigma=err_centroids[good_idx], absolute_sigma=False)
             LinRelErrors = np.sqrt(np.diag(LinRelCov))
 
@@ -365,8 +371,8 @@ class FittingEngine(object):
 
             # Plot channel energy relation from best fit centroids and true values, WITHOUT the bad pixels
             if self.plots:
-                FitRel = np.array(LinearRelation(self.all_ini_centroids[good_idx], *LinRelPar))
-                rel_figure = plot_utils.plot_relation(self.all_ini_centroids[good_idx], fit_centroids[good_idx],
+                FitRel = np.array(LinearRelation(fit_ini_centroids[good_idx], *LinRelPar))
+                rel_figure = plot_utils.plot_relation(fit_ini_centroids[good_idx], fit_centroids[good_idx],
                                                       err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None, stats=[cent_mean, cent_stddev])
                 rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
                 rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}_REFITTED.png".format(self.rootname, int(idx0)))
