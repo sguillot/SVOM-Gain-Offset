@@ -120,7 +120,7 @@ class FittingEngine(object):
         if idx0 != self.all_spectra['pixel'][idx0]:
             log.error('Problem with pixel number. Exiting...')
             exit()
-        
+
         # Background spectrum for pixel idx0
         #     DEV:  GEANT4 BACKGROUND made into a matrix of spectra (columns: "channels", "spectrum")
         spectrum = np.column_stack((np.arange(self.all_spectra['channels'][idx0]), self.all_spectra['spectrum'][idx0]))
@@ -307,6 +307,7 @@ class FittingEngine(object):
         #    print(LargeErrors)
 
         # REMOVE CENTROIDS WITH LARGE ERRORS
+        #fit_ini_centroids = self.all_ini_centroids
         fit_ini_centroids = self.all_ini_centroids[~LargeErrors]
         fit_centroids = fit_centroids[~LargeErrors]
         err_centroids = err_centroids[~LargeErrors]

@@ -54,7 +54,7 @@ A VERIFIER / A AMELIORER
 - Check title (pix Number) in diagnostic plots.
 - Add centroid values to Ticks in Plot_Fit_statistics
 - Fix axis values in Plot_Fit_statistics
-- Check why POOL and noPOOL give different results!!!
+- Check that POOL and noPOOL give same results!!!
 
 DONE:
 - Verifier pourquoi l'offset a environ 0.5 canal de difference avec la valeur originale.
