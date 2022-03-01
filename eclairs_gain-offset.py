@@ -61,6 +61,7 @@ def range_limited_int(arg):
             raise argparse.ArgumentTypeError("Argument must be > {} and < {}".format(min_val, max_val))
         return f
 
+# TODO: Allow single pixel selection for investigations
 
 parser = argparse.ArgumentParser(description=desc)
 # THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
@@ -79,9 +80,10 @@ parser.add_argument("--width", help="width (in keV) for energy redistribution", 
 args = parser.parse_args()
 
 
-if (args.plotall is True) and (args.proc > 1):
-    args.proc = 1
-    log.warning("Plotting and multiprocessing has issues. Setting Nb of Proc to 1. Sorry!")
+# DEPRECATED - plotall now works in Pool
+# if (args.plotall is True) and (args.proc > 1):
+#     args.proc = 1
+#     log.warning("Plotting and multiprocessing has issues. Setting Nb of Proc to 1. Sorry!")
 
 
 # MAIN RUN CALL
