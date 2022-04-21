@@ -104,6 +104,7 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None):
         ax2.axhline(y=0, color='orange')                # That's just a horizontal line!!!
         ax2.set_ylabel('Difference (in channels)')
         ax2.set_xlabel('keV')
+        ax2.set_ylim(-4.,4.)
     else:
         ax1.set_xlabel('keV')
         ax1.set_xlim(0,95)
@@ -252,7 +253,9 @@ def plot_comparison(indices,                                        # Index for 
 def plot_reconstruction(gain,offset,
                         gain_err,offset_err):
 
-    yaxis_max = 0.3
+    yaxis_max = 0.5
+    lowband_thres=0.3
+    highband_thres=0.5
     channels = np.arange(1,1024,1)
     
     # Energies at which to calculate the pass fraction and make five histogram subplots
@@ -282,8 +285,8 @@ def plot_reconstruction(gain,offset,
             ax0.set_ylim([0,1.1*yaxis_max])
 
     # Show requirements at < 80 keV and > 80 keV     
-    ax0.plot([4,80],[0.15,0.15],color='red')
-    ax0.plot([80,150],[0.30,0.30],color='red')
+    ax0.plot([4,80],[lowband_thres,lowband_thres],color='red')
+    ax0.plot([80,150],[highband_thres,highband_thres],color='red')
     ax0.set_ylabel('Reconstruction uncertainty (keV)')
     ax0.set_xlabel('keV')
 
@@ -298,13 +301,13 @@ def plot_reconstruction(gain,offset,
 
         # Calculate the "Pass fraction" and draw line for requirement at < 80 keV and > 80 keV
         if E<=80:
-            NbPass = len(reconst_err[(reconst_err[:,j]<=0.15),j])
-            if high_x > 0.15:
-                ax.axvline(x=0.15, color='r')
+            NbPass = len(reconst_err[(reconst_err[:,j]<=lowband_thres),j])
+            if high_x > lowband_thres:
+                ax.axvline(x=lowband_thres, color='r')
         else:
-            NbPass = len(reconst_err[(reconst_err[:,j]<=0.30),j])
-            if high_x > 0.30:
-                ax.axvline(x=0.30, color='r')
+            NbPass = len(reconst_err[(reconst_err[:,j]<=highband_thres),j])
+            if high_x > highband_thres:
+                ax.axvline(x=highband_thres, color='r')
 
         # Writes "Pass fraction" on the histrogram subplots
         txt = ax.text(0.1*(high_x-low_x), 0.9*high_y,"{:0.2f}% pass".format(100*NbPass/len(gain)),fontsize=12)
@@ -316,7 +319,8 @@ def plot_reconstruction(gain,offset,
 # Comparison of best fit gain/offset for all pixels
 def plot_fit_stats(indices,                                        # Index for the pixels
                    redchi2,
-                   LargeErr):
+                   LargeErr,
+                   cent):
 
     # Color for False and True
     binary_cmap = matplotlib.colors.ListedColormap(['white', 'red'])
@@ -333,6 +337,7 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[0, 0].minorticks_on()
     axes[0, 0].grid(which='minor', axis='x', linewidth=0.5, alpha=0.5)
     axes[0, 0].set_ylabel("Reduced Chi Square")
+    axes[0, 0].set_xlim(0, axes[0, 0].get_xlim()[1])
     axes[0, 0].set_ylim(0.6,1.6)
 
     axes[0, 1].hist(redchi2, bins=50, orientation='horizontal')
@@ -353,21 +358,30 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[1, 0].minorticks_on()
     axes[1, 0].set_xlabel("Pixel number")
     axes[1, 0].set_ylabel("Centroids w/ Large % error")
-    #axes[1, 0].set_yticks(np.arange(0,15,2), np.arange(1,16,2) )
+    #axes[1, 0].set_yticks(np.arange(0,15,2), np.arange(1,16,2) )  ## MATPLOTLIB 3.5
+    axes[1, 0].set_yticks(np.arange(0,15,2))                       ## MATPLOTLIB 3.4
+    axes[1, 0].set_yticklabels(np.arange(1,16,2) )                 ## MATPLOTLIB 3.4
     axes[1, 0].grid(which='major', axis='x', linewidth=0.7, alpha=1.0)
     axes[1, 0].grid(which='minor', axis='x', linewidth=0.5, alpha=0.5)
     axes[1, 0].grid(which='major', axis='y', linewidth=0.7, alpha=1.0)
+    axes[1, 0].set_xlim(axes[0, 0].get_xlim())
     axes[1, 0].set_ylim(-0.5,14)
     #axes[1, 0].invert_yaxis()
+
+    # Input Centroid energies
+    labels_centroids = ["{:.2f} keV".format(e) for e in np.concatenate(cent).ravel()]
 
     centroids = np.arange(0,len(LargeErr[0]),1)
     a = np.sum(LargeErr, axis=0)
     axes[1, 1].barh(centroids, width=a)
     axes[1, 1].tick_params(bottom=True, top=False, left=True, right=False)
-    axes[1, 1].tick_params(labelbottom=True, labeltop=False, labelleft=False, labelright=False)
+    axes[1, 1].tick_params(labelbottom=True, labeltop=False, labelleft=False, labelright=True)
     #axes[1, 1].minorticks_off()
-    #axes[1, 1].set_yticks(np.arange(0,15,2), np.arange(1,16,2) )
+    #axes[1, 1].set_yticks(np.arange(0,15,1), centroids)     ## MATPLOTLIB 3.5
+    axes[1, 1].set_yticks(np.arange(0,14,1))                 ## MATPLOTLIB 3.4
+    axes[1, 1].set_yticklabels(labels_centroids)             ## MATPLOTLIB 3.4
     axes[1, 1].set_ylim(axes[1, 0].get_ylim())
+    axes[1, 1].yaxis.set_tick_params(labelsize=7)
     axes[1, 1].grid(which='major', axis='y', linewidth=0.7, alpha=1.0)
     #handles, labels = axes[0, 0].get_legend_handles_labels()
     #fig.legend(handles, labels, loc='upper right')

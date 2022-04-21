@@ -52,16 +52,17 @@ A VERIFIER / A AMELIORER
 - Verifier pourquoi le fit du gain et de l'offset (directement) a des barres d'erreur très large.
 - Rajouter les infos sur les pixels (X,Y) à partir du DETNUM.
 - Check title (pix Number) in diagnostic plots.
-- Add centroid values to Ticks in Plot_Fit_statistics
-- Fix axis values in Plot_Fit_statistics
-- Check that POOL and noPOOL give same results!!!
+
 
 DONE:
 - Verifier pourquoi l'offset a environ 0.5 canal de difference avec la valeur originale.
-    -> REASON:   Fitting a continuous "channel function" to discrete (integer) "channel data".
-    -> SOLUTION: 0.5 added to the input binned channel data in fit_utils.py -->  xdata = np.array(xdata) + 0.5
+  - REASON:   Fitting a continuous "channel function" to discrete (integer) "channel data".
+  - SOLUTION: 0.5 added to the input binned channel data in fit_utils.py -->  xdata = np.array(xdata) + 0.5
 - Pour le fit de la relation linéaire Canal-Energie, changer scipy.curvefit en regression lineaire simple.
-    -> Trials show that this give worse results (see RESULTS/LINEAR_FIT_TESTS).
+  - Trials show that this give worse results (see RESULTS/LINEAR_FIT_TESTS).
 - Changer la variable "width" -> FWHM
-    -> DONE
-
+  - DONE
+- Fix axis values in Plot_Fit_statistics
+  - DONE (ax.set_xticks version change in Matplotlib 3.4 to 3.5)
+- Add centroid values to Ticks in Plot_Fit_statistics
+  - DONE

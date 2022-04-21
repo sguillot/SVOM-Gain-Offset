@@ -47,7 +47,6 @@ Output include:
 
 """
 
-# Todo: Define two TYPES for NbPix and for specific pixels.
 def range_limited_int(arg):
     """ Type function for argparse - an int within some predefined bounds """
     min_val = 1
@@ -57,11 +56,9 @@ def range_limited_int(arg):
             f = int(arg)
         except ValueError:
             raise argparse.ArgumentTypeError("Must be an int")
-        if f < min_val or f > max_val-1:
+        if f < min_val or f > max_val:
             raise argparse.ArgumentTypeError("Argument must be > {} and < {}".format(min_val, max_val))
         return f
-
-# TODO: Allow single pixel selection for investigations
 
 parser = argparse.ArgumentParser(description=desc)
 # THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
@@ -72,7 +69,7 @@ parser.add_argument("--rootname", help="Outputs rootname", type=str, default="De
 # OPTIONAL ARGUMENTS
 parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
 parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
-parser.add_argument("--pixels", help="One or more specific pixels to run (default=None, for tests only)", nargs='+', type=range_limited_int, default=None)
+parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
 parser.add_argument("--plots", help="Makes initial and final plots (default=False)", default=False, action='store_true')
 parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
 parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution", default=False, action='store_true')
@@ -144,11 +141,11 @@ def mainrun(input_relation, output_relation,
         if args.pixels is not None:
             args.pixels = None
             log.warning("Ignoring --pixels (conflicting with --nbpix)")
-    if (args.nbpix is None) or (args.nbpix > len(spectra['pixel'])):
+    else:
         pix = np.arange(0, len(spectra['pixel']))
-    if args.pixels is not None:
-        pix = args.pixels
-    # TODO: ensure that pix will always be defined!
+        if args.pixels is not None:
+            pix = [p-1 for p in args.pixels]
+
 
     ################################################################################
     # Calls the main FittingEngine with either Multiprocessing Pool or simple 'for' loop
@@ -190,7 +187,6 @@ def mainrun(input_relation, output_relation,
         final_offset_err = np.zeros(len(pix))
         LMFit_RedChi2 = np.zeros(len(pix))
         LMFit_LargeErr = np.zeros(( len(pix),len(np.concatenate(centroids).ravel())) )
-
 
         log.info("Running for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
         log.info("...")
@@ -272,7 +268,7 @@ def mainrun(input_relation, output_relation,
         comp_fig.savefig("{}/gain_offset_comparisons.png".format(rootname))
 
         # Fit Statistics figure
-        fitstat_fig = plot_utils.plot_fit_stats(indices, LMFit_RedChi2, LMFit_LargeErr)
+        fitstat_fig = plot_utils.plot_fit_stats(indices, LMFit_RedChi2, LMFit_LargeErr, centroids)
         fitstat_fig.suptitle("Fit Statistics - {} pixels - Exposure: {} ks".format(len(pix), exp))
         fitstat_fig.savefig("{}/fit_statistics.png".format(rootname))
 
