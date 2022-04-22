@@ -1,6 +1,14 @@
 # SVOM-Gain-Offset
 Code to calculate the gain-offset relation for the 6400 pixels of the ECLAIRs camera onboard SVOM
 
+### Required packages:
+- numpy
+- scipy
+- lmfit
+- uncertainties
+- matplotlib
+- astropy
+
 ### The folder NOTEBOOKS contains:
 
 - iPython notebooks to make FITS file with 6400 spectra (one per pixel) for different exposure times from Background event files provided by Sujay Mate. One notebook is for the event file with the Earth in the FOV, one is for a full orbit (to select times when the Earth is not in the field of view).

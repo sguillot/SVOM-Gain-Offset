@@ -84,7 +84,7 @@ def plot_raw(spec_raw, centroids_ini):
 
 
 # Relation channel-energy fits
-def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None):
+def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None, tolerance=4):
     fig = plt.figure(figsize=(12, 8))
     fig.tight_layout()
 
@@ -97,6 +97,7 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None):
         # Plot best-fit relation (line fit_rel)
         ax1.plot(ini,fit_rel, color='orange')
         ax1.set_xlim(0,95)
+        ax1.set_ylim(0,600)
 
         # Plot residuals of best-fit
         ax2 = plt.subplot(212, sharex=ax1)
@@ -115,9 +116,15 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None):
         ax2.errorbar(ini[bad_cent],fin[bad_cent]-fit_rel[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3)
 
     # Show 3-sigma error in GREEN
-    if stats is not None:
-        ax2.axhspan(stats[0]-3.0*stats[1],stats[0]+3.0*stats[1], alpha=0.5, color='green')
-        
+    if stats is not None and fit_rel is not None:
+        #ax2.axhspan(stats[0]-3.0*stats[1],stats[0]+3.0*stats[1], alpha=0.5, color='green')
+        low_bound = ini*(stats[0].nominal_value-tolerance*stats[0].std_dev) + (stats[1].nominal_value-tolerance*stats[1].std_dev)
+        high_bound = ini*(stats[0].nominal_value+tolerance*stats[0].std_dev) + (stats[1].nominal_value+tolerance*stats[1].std_dev)
+        #ax1.fill_between(ini,low_bound, high_bound, color='green')
+        ax2.fill_between(ini,low_bound-fit_rel, high_bound-fit_rel, color='orange', alpha=0.2)
+        #ax2.plot(ini, lowB-fit_rel, color='r')
+        #ax2.plot(ini, highB-fit_rel, color='r')
+
     return fig
 
 
@@ -191,15 +198,19 @@ def plot_difference(diff_gains, diff_offset, bins=30):
 def plot_comparison(indices,                                        # Index for the pixels
                     final_gains,  initial_gains,  final_gains_err,  # Gains  (best fit, initial, and best fit uncertainties)
                     final_offset, initial_offset, final_offset_err, # Offset (best fit, initial, and best fit uncertainties)
-                    original_gain = None, original_offset=None):    # These options are for development only (i.e., the true values use to make input spectra)
+                    original_gain = None, original_offset=None,     # True values of Gain and Offset (used to make input spectra) -- For development only
+                    pix_over_specs=None):                           # Flagged pixels with reconstruction difference over specs    -- For development only
 
     # fig = plt.figure(figsize = (12,9))
-    fig, axes = plt.subplots(2, 2,  gridspec_kw={'width_ratios': [4, 1]})
+    fig, axes = plt.subplots(2, 2,  gridspec_kw={'width_ratios': [4, 1]}, figsize=(12,8))
     plt.subplots_adjust(wspace=0.00)
 
     # Plots for gain
     # Best-fit gains
     axes[0, 0].errorbar(indices, final_gains, fmt='x', color='green', yerr=final_gains_err, label='Fitted value')
+    if pix_over_specs is not None:
+        if len(pix_over_specs)>0:
+            axes[0, 0].errorbar(indices[pix_over_specs], final_gains[pix_over_specs], fmt='x', color='red', yerr=final_gains_err[pix_over_specs], label='Fitted value (over specs)')
     # Initial values of the gains
     axes[0, 0].plot(indices, initial_gains, color='orange', linewidth=0.5, label='Previous value (from input matrix)')
     # Horizontal line for gain=0.145 keV/Channel
@@ -222,6 +233,9 @@ def plot_comparison(indices,                                        # Index for 
     # Plots for offset
     # Best-fit offset
     axes[1, 0].errorbar(indices, final_offset, fmt='x', color='green', yerr=final_offset_err, label='Fitted value')
+    if pix_over_specs is not None:
+        if len(pix_over_specs)>0:
+            axes[1, 0].errorbar(indices[pix_over_specs], final_offset[pix_over_specs], fmt='x', color='red', yerr=final_offset_err[pix_over_specs], label='Fitted value (over specs)')
     # Initial values of the offset
     axes[1, 0].plot(indices, initial_offset, color='orange', linewidth=0.5, label='Previous value (from input matrix)')
     # Horizontal line for offset=3.0 keV
@@ -257,7 +271,9 @@ def plot_reconstruction(gain,offset,
     lowband_thres=0.3
     highband_thres=0.5
     channels = np.arange(1,1024,1)
-    
+
+    pix_over_specs = []
+
     # Energies at which to calculate the pass fraction and make five histogram subplots
     SelectE = np.array([4,15,50,80,150])
     
@@ -266,19 +282,31 @@ def plot_reconstruction(gain,offset,
     ax0 = plt.subplot2grid((2, len(SelectE)), (0, 0), rowspan=1, colspan=len(SelectE))
     ax0.set_ylim([0,1.1*yaxis_max])
 
-    # Table to store the reconstruction errors at the given Selected energies (for histrogram subplots)
+    # Table to store the reconstruction errors at the given Selected energies (for histogram subplots)
     reconst_err = np.zeros(shape=(len(gain),len(SelectE)))
     
     # Calculate and plot reconstruct error/uncertainty for each pixel
     for (i,g) in enumerate(gain):
         # Get energy and uncertainty from gain, offset and their uncertainties
         energies, energies_err = Ch2En(channels,g,offset[i], gain_err[i], offset_err[i])
-        ax0.plot(energies, energies_err,color='black',alpha=0.1)
+
+        line_color = 'black'
+        line_alpha = 0.1
 
         # Interpolate to calculate the reconstruction errors at the given Selected energies
         for (j,E) in enumerate(SelectE):
             reconst_err[i,j]  = np.interp(E,energies,energies_err)
-        
+            if (E<=80 and reconst_err[i,j]>lowband_thres):
+                line_color = 'orange'
+                line_alpha = 0.5
+                pix_over_specs.append(i)
+            if (E>80 and reconst_err[i,j]>highband_thres):
+                line_color = 'orange'
+                line_alpha = 0.5
+                pix_over_specs.append(i)
+
+        ax0.plot(energies, energies_err, color=line_color, alpha=line_alpha)
+
         # Adjust the y-axis if needed 
         if energies_err[0]>yaxis_max:
             yaxis_max = energies_err[0]
@@ -312,8 +340,10 @@ def plot_reconstruction(gain,offset,
         # Writes "Pass fraction" on the histrogram subplots
         txt = ax.text(0.1*(high_x-low_x), 0.9*high_y,"{:0.2f}% pass".format(100*NbPass/len(gain)),fontsize=12)
         txt.set_bbox(dict(facecolor='white', alpha=0.7))
-        
-    return fig
+
+    pix_over_specs = np.unique(pix_over_specs)
+
+    return fig, pix_over_specs
 
 
 # Comparison of best fit gain/offset for all pixels
