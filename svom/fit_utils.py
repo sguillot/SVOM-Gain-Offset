@@ -10,6 +10,9 @@ import matplotlib.gridspec as gridspec
 from astropy import log
 from astropy.stats import sigma_clipped_stats
 
+# UNCERTAINTIES imports
+from uncertainties import ufloat
+
 # SCIPY imports
 from scipy.optimize import curve_fit
 
@@ -328,18 +331,23 @@ class FittingEngine(object):
         #                                  p0=guesses, sigma=None, absolute_sigma=False)
         #  Uncertainties are the square of the diagonal indices of the covariance matrix
         LinRelErrors = np.sqrt(np.diag(LinRelCov))
+        inv_gain = ufloat(LinRelPar[0], LinRelErrors[0])
+        inv_offs = ufloat(LinRelPar[1], LinRelErrors[1])
 
-        # Invert the best-fit gain and offset (from LinRelPar) 
-        gain_fit = 1/LinRelPar[0]                               # GAIN:   keV/chan -> chan/keV
-        gain_err = gain_fit * (LinRelErrors[0]/LinRelPar[0])    # propagate the uncertainties of gain in keV/chan into chan/keV
-        offs_fit = -(LinRelPar[1]/LinRelPar[0])                 # OFFSET:  channel ->  keV
-        offs_err = np.abs(offs_fit) * np.sqrt(np.power((LinRelErrors[1]/LinRelPar[1]), 2)+np.power((LinRelErrors[0]/LinRelPar[0]), 2))  # propagate the uncertainties of gain in channel into keV
+        # Invert the best-fit gain and offset (from ufloat)
+        gain_fit = 1 / inv_gain  # GAIN:    keV/chan -> chan/keV
+        offs_fit = -(inv_offs / inv_gain)  # OFFSET:  channel ->  keV
 
         # Check for large deviations, and exclude bad centroids.
+        tolerance = 4
         FitRel = np.array(LinearRelation(fit_ini_centroids, *LinRelPar))                           # Calculate the best-fit energy-channel relation
-        cent_mean, cent_median, cent_stddev = sigma_clipped_stats((fit_centroids-FitRel),
-                                                                  maxiters=3, sigma_lower=3, sigma_upper=3)  # Calculate the statistics of centroids values
-        bad_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                          # Get the indices of those that deviate by >4 sigma
+        LowBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0]-tolerance*LinRelErrors[0], LinRelPar[1]-tolerance*LinRelErrors[1]))
+        HighBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0]+tolerance*LinRelErrors[0], LinRelPar[1]+tolerance*LinRelErrors[1]))
+
+        #cent_mean, cent_median, cent_stddev = sigma_clipped_stats((fit_centroids-FitRel),
+        #                                                          maxiters=3, sigma_lower=3, sigma_upper=3)  # Calculate the statistics of centroids values
+        # bad_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                          # Get the indices of those that deviate by >4 sigma
+        bad_idx = (np.abs(fit_centroids-FitRel)) > np.abs(HighBound-FitRel)
         if np.any(bad_idx):
             log.warning(" Pixel {:4.0f} -- Some centroids are outliers (will be shown in red on plot)".format(idx0))
             log.warning("                  Re-run for pixel {:4.0f} with option --plotall to see outliers".format(idx0))
@@ -349,7 +357,8 @@ class FittingEngine(object):
         # Plot channel energy relation from best fit centroids and true values
         if self.plots:
             rel_figure = plot_utils.plot_relation(fit_ini_centroids, fit_centroids,
-                                                  err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx, stats=[cent_mean, cent_stddev])
+                                                  err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx, stats=[inv_gain, inv_offs], tolerance=tolerance)
+
             rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
             rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}.png".format(self.rootname, int(idx0)))
 
@@ -363,21 +372,24 @@ class FittingEngine(object):
             LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids[good_idx], fit_centroids[good_idx],
                                              p0=guesses, sigma=err_centroids[good_idx], absolute_sigma=False)
             LinRelErrors = np.sqrt(np.diag(LinRelCov))
+            inv_gain = ufloat(LinRelPar[0], LinRelErrors[0])
+            inv_offs = ufloat(LinRelPar[1], LinRelErrors[1])
 
-            # Invert the best-fit gain and offset (from LinRelPar), like above
-            gain_fit = 1/LinRelPar[0]                               # GAIN:   keV/chan -> chan/keV
-            gain_err = gain_fit * (LinRelErrors[0]/LinRelPar[0])    # propagate the uncertainties of gain in keV/chan into chan/keV
-            offs_fit = -(LinRelPar[1]/LinRelPar[0])                 # OFFSET:  channel ->  keV
-            offs_err = np.abs(offs_fit) * np.sqrt(np.power((LinRelErrors[1]/LinRelPar[1]), 2)+np.power((LinRelErrors[0]/LinRelPar[0]), 2))  # propagate the uncertainties of gain in channel into keV
+            # Invert the best-fit gain and offset (from ufloat)
+            gain_fit = 1 / inv_gain            # GAIN:    keV/chan -> chan/keV
+            offs_fit = -(inv_offs / inv_gain)  # OFFSET:  channel ->  keV
 
             # Plot channel energy relation from best fit centroids and true values, WITHOUT the bad pixels
             if self.plots:
                 FitRel = np.array(LinearRelation(fit_ini_centroids[good_idx], *LinRelPar))
+                LowBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0] - tolerance * LinRelErrors[0],LinRelPar[1] - tolerance * LinRelErrors[1]))
+                HighBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0] + tolerance * LinRelErrors[0],LinRelPar[1] + tolerance * LinRelErrors[1]))
+
                 rel_figure = plot_utils.plot_relation(fit_ini_centroids[good_idx], fit_centroids[good_idx],
-                                                      err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None, stats=[cent_mean, cent_stddev])
+                                                      err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None, stats=[inv_gain, inv_offs], tolerance=tolerance)
                 rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
                 rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}_REFITTED.png".format(self.rootname, int(idx0)))
 
         # Return pixel index, best fit gain and offset and their errors
-        return idx0, gain_fit, offs_fit, gain_err, offs_err, FitResult.redchi, LargeErrors
+        return idx0, gain_fit.nominal_value, offs_fit.nominal_value, gain_fit.std_dev, offs_fit.std_dev, FitResult.redchi, LargeErrors
         

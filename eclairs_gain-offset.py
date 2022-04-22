@@ -61,7 +61,7 @@ def range_limited_int(arg):
         return f
 
 parser = argparse.ArgumentParser(description=desc)
-# THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
+# TODO:  THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
 parser.add_argument("--spectra", help="Input spectra (fits file matrix of 6400 spectra)", type=str, default=None)
 parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", type=str, default="AUX-ECL-PIX-CAL-20170101Q01.fits")
 parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")
@@ -273,10 +273,10 @@ def mainrun(input_relation, output_relation,
         fitstat_fig.savefig("{}/fit_statistics.png".format(rootname))
 
         # Reconstruction uncertainty, requirements, and pass fraction
-        rec_fig = plot_utils.plot_reconstruction(final_gains, final_offset,
+        rec_fig, _ = plot_utils.plot_reconstruction(final_gains, final_offset,
                                                  final_gains_err, final_offset_err)
         rec_fig.suptitle("Reconstruction uncertainty - {} pixels - Exposure: {} ks".format(len(pix), exp))
-        rec_fig.savefig("{}/reconstruction_errors.png".format(rootname))
+        rec_fig.savefig("{}/reconstruction_uncertainties.png".format(rootname))
 
         # Matrix of output differences
         # DEVELOPEMENT -- TO PERMIT LESS THAN 6400 PIXEL MATRICES
@@ -310,12 +310,23 @@ def mainrun(input_relation, output_relation,
             diff_fig.savefig("{}/gain_offset_histograms.png".format(rootname))
 
             # Reconstruction errors (DIFFERENCE), requirements, and pass fraction
-            rec_fig = plot_utils.plot_reconstruction(final_gains, final_offset,
+            rec_fig, pix_over_specs = plot_utils.plot_reconstruction(final_gains, final_offset,
                                                      (final_gains - original_gain[pix]),
                                                      (final_offset - original_offset[pix]))
-            rec_fig.suptitle("Reconstruction Error - {} pixels - Exposure: {} ks".format(len(pix), exp))
+            rec_fig.suptitle("Reconstruction Difference - {} pixels - Exposure: {} ks".format(len(pix), exp))
             rec_fig.savefig("{}/reconstruction_difference.png".format(rootname))
 
+            np.savetxt("{}/pixels_over_specs.txt".format(rootname), pix_over_specs, fmt='%04d', newline='\n')
+
+            # Comparison of best fit gain/offset for all pixels
+            comp_fig = plot_utils.plot_comparison(indices,
+                                                  final_gains, initial_gains, final_gains_err,
+                                                  final_offset, initial_offset, final_offset_err,
+                                                  pix_over_specs=pix_over_specs)
+            #comp_fig.tight
+            comp_fig.suptitle("Best fit gain and offset - {} pixels - Exposure: {} ks".format(len(pix), exp))
+            comp_fig.savefig("{}/gain_offset_comparisons.png".format(rootname))
+            plt.tight_layout()
             plt.close('all')
 
 
