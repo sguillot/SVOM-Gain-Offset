@@ -84,24 +84,26 @@ def plot_raw(spec_raw, centroids_ini):
 
 
 # Relation channel-energy fits
-def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None, tolerance=4):
+def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,
+                  stats=None, tolerance=4,
+                  originals=None):
     fig = plt.figure(figsize=(12, 8))
     fig.tight_layout()
 
     # Plotting true centroids (ini) and fitted centroids (fin)
     ax1 = plt.subplot(211)
-    ax1.errorbar(ini,fin,yerr=err,fmt='.')
+    ax1.errorbar(ini,fin,yerr=err,fmt='.', label='centroids')
     ax1.set_ylabel('channel')
     
     if fit_rel is not None:
         # Plot best-fit relation (line fit_rel)
-        ax1.plot(ini,fit_rel, color='orange')
+        ax1.plot(ini,fit_rel, color='orange', label='Fit relation')
         ax1.set_xlim(0,95)
         ax1.set_ylim(0,600)
 
         # Plot residuals of best-fit
         ax2 = plt.subplot(212, sharex=ax1)
-        ax2.errorbar(ini,fin-fit_rel,yerr=err,fmt='.')
+        ax2.errorbar(ini,fin-fit_rel,yerr=err,fmt='.', label='centroids')
         ax2.axhline(y=0, color='orange')                # That's just a horizontal line!!!
         ax2.set_ylabel('Difference (in channels)')
         ax2.set_xlabel('keV')
@@ -112,8 +114,8 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None, tolera
 
     # Show bad centroids in RED
     if bad_cent is not None:
-        ax1.errorbar(ini[bad_cent],fin[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3)
-        ax2.errorbar(ini[bad_cent],fin[bad_cent]-fit_rel[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3)
+        ax1.errorbar(ini[bad_cent],fin[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3, label='excluded')
+        ax2.errorbar(ini[bad_cent],fin[bad_cent]-fit_rel[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3, label='excluded')
 
     # Show 3-sigma error in GREEN
     if stats is not None and fit_rel is not None:
@@ -121,17 +123,23 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,stats=None, tolera
         low_bound = ini*(stats[0].nominal_value-tolerance*stats[0].std_dev) + (stats[1].nominal_value-tolerance*stats[1].std_dev)
         high_bound = ini*(stats[0].nominal_value+tolerance*stats[0].std_dev) + (stats[1].nominal_value+tolerance*stats[1].std_dev)
         #ax1.fill_between(ini,low_bound, high_bound, color='green')
-        ax2.fill_between(ini,low_bound-fit_rel, high_bound-fit_rel, color='orange', alpha=0.2)
+        ax2.fill_between(ini,low_bound-fit_rel, high_bound-fit_rel, color='orange', alpha=0.2, label='Fit +/- {}-sigma'.format(tolerance))
         #ax2.plot(ini, lowB-fit_rel, color='r')
         #ax2.plot(ini, highB-fit_rel, color='r')
 
+    if originals is not None:
+        orig_relation = (ini-originals[1])/originals[0]
+        ax2.plot(ini, orig_relation-fit_rel, color='r', linestyle='--', label='Original relation')
+
+    ax1.legend()
+    ax2.legend()
     return fig
 
 
 # Plot block of spectral lines with fits and residuals 
 def plot_block(spec_block,spec_cont,
                cont_func,fit_func,guess_func,
-               centroids_ini,centroids_fit,centroids_err,
+               centroids_ini,centroids_fit,centroids_err, tolerance=4,
                only_residuals=False):
 
     # Plot a spectral block
@@ -148,7 +156,7 @@ def plot_block(spec_block,spec_cont,
             plt.axvline(x=cent, color='r', linestyle='--',linewidth=1, label='Init. centr.' if i==0 else '')
             if centroids_err[i] is not None:
                 # Best-fit centroids WITH 3-sigma uncertainties
-                plt.axvspan(cent-3*centroids_err[i], cent+3*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
+                plt.axvspan(cent-tolerance*centroids_err[i], cent+tolerance*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
             else:
                 # Best-fit centroids WITHOUT uncertainties
                 plt.axvline(x=centroids_fit[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
@@ -162,7 +170,7 @@ def plot_block(spec_block,spec_cont,
             plt.axvline(x=cent, color='r', linestyle='--',linewidth=1, label='Init. centr.' if i==0 else '')
             if centroids_err[i] is not None:
                 # Best-fit centroids WITH 3-sigma uncertainties
-                plt.axvspan(cent-3*centroids_err[i], cent+3*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
+                plt.axvspan(centroids_fit[i]-tolerance*centroids_err[i], centroids_fit[i]+tolerance*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
             else:
                 # Best-fit centroids WITHOUT uncertainties
                 plt.axvline(x=centroids_fit[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')

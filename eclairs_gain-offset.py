@@ -67,6 +67,7 @@ parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", typ
 parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")
 parser.add_argument("--rootname", help="Outputs rootname", type=str, default="Default")
 # OPTIONAL ARGUMENTS
+parser.add_argument("--tolerance", help="Filtering tolerance (default=4)", type=int, default=4)
 parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
 parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
 parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
@@ -159,7 +160,7 @@ def mainrun(input_relation, output_relation,
             pool = Pool(args.proc)
 
             # Initiates the FittingEngine Object
-            fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, rawspec=rawspec, plots=args.plotall)
+            fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
 
             # Maps the Multiprocessing Pool with the FittingEngine
             # for the selected pixels (default, or from options --nbpix or --pixels)
@@ -192,7 +193,7 @@ def mainrun(input_relation, output_relation,
         log.info("...")
 
         # Initiates the FittingEngine Object
-        fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, rawspec=rawspec, plots=args.plotall)
+        fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
 
         # Calls the FittingEngine object for the selected pixels (default, or from options --nbpix or --pixels)
         for i, idet in enumerate(tqdm.tqdm(relations0[pix], total=len(pix), position=0, leave=True)):
