@@ -1,9 +1,10 @@
 import os
 from os import path
 import numpy as np
+import logging as log
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from astropy import log
+#from astropy import log
 
 # SVOM SPECIFIC imports
 from svom.utils import En2Ch

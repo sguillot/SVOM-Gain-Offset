@@ -1,5 +1,6 @@
 import numpy as np
-from astropy import log
+import logging as log
+#from astropy import log
 
 def En2Ch(En,gain,offset,gain_err=None, offset_err=None):
     ## gain   in keV/chan

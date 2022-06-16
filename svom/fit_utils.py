@@ -1,4 +1,5 @@
 import numpy as np
+import logging as log
 import matplotlib
 matplotlib.use('Agg')
 
@@ -7,7 +8,6 @@ import matplotlib.gridspec as gridspec
 
 # ASTROPY imports
 # from astropy.io import fits
-from astropy import log
 from astropy.stats import sigma_clipped_stats
 
 # UNCERTAINTIES imports

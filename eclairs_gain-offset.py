@@ -1,9 +1,11 @@
 import os
+import sys
 import time
 import argparse, configparser
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
+import logging as log
 from os import path
 from datetime import date
 
@@ -12,7 +14,7 @@ from multiprocessing import Pool
 
 # ASTROPY imports
 # from astropy.io import fits
-from astropy import log
+# from astropy import log   # DEPRECATING IN PROGRESS
 from astropy.stats import sigma_clipped_stats
 
 # SVOM SPECIFIC imports
@@ -77,6 +79,9 @@ parser.add_argument("--plots", help="Makes initial and final plots (default=Fals
 parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
 parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution)", default=False, action='store_true')
 parser.add_argument("--width", help="width (in keV) for energy redistribution", type=float, default=1.1)
+parser.add_argument("--logfile", help="Name of logfile (default=rootname.log)", type=str, default=None)
+parser.add_argument("--loglevel", help="Log Level (DEBUG, INFO, WARNING, ERROR, CRITICAL), Default=WARNING", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default="WARNING")
+
 args = parser.parse_args()
 
 if args.config_file:
@@ -95,6 +100,7 @@ if args.config_file:
 # if (args.plotall is True) and (args.proc > 1):
 #     args.proc = 1
 #     log.warning("Plotting and multiprocessing has issues. Setting Nb of Proc to 1. Sorry!")
+
 
 
 # MAIN RUN CALL
@@ -349,7 +355,19 @@ if __name__ == '__main__':
     # Working directory root
     workdir = path.dirname(path.realpath(__name__))
 
-    print(workdir)
+    if args.logfile is not None:
+        log.basicConfig(filename = path.join(workdir,"LOGS/{}".format(args.logfile)),
+                        level = args.loglevel,
+                        format = "%(asctime)s: %(name)s : %(funcName)s: %(levelname)s: %(message)s",
+                        # format="%(asctime)s [%(levelname)s] %(message)s",
+                        )
+    else:
+        log.basicConfig(level = args.loglevel,
+                        format = "%(asctime)s: %(name)s : %(funcName)s: %(levelname)s: %(message)s",
+                        # format="%(asctime)s [%(levelname)s] %(message)s",
+                        )
+
+    log.getLogger('matplotlib').setLevel(log.WARNING)
 
     # Input gain-offset matrix
     filerel_in  = path.join(workdir, "RELATION/{}".format(args.matrix))

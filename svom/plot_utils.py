@@ -1,4 +1,5 @@
 import numpy as np
+import logging as log
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.colors
