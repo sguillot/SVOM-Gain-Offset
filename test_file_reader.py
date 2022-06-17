@@ -15,7 +15,6 @@ def range_limited_int(arg):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--config_file", type=str, help='Config file')
-# TODO:  THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
 parser.add_argument("--spectra", help="Input spectra (fits file matrix of 6400 spectra)", type=str, default=None)
 parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", type=str, default="AUX-ECL-PIX-CAL-20170101Q01.fits")
 parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")

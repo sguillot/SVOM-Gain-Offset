@@ -1,5 +1,6 @@
 import os
 from os import path
+from datetime import datetime
 import numpy as np
 import logging as log
 import matplotlib.pyplot as plt
@@ -124,7 +125,9 @@ def read_lines(filename):
 
 ### WRITES OUTPUT GAIN-OFFSET MATRIX
 def write_rel(data_idx, data_gain, data_offset,
-              file_in, file_out, rootname, clobber=True, plotmatrix=False):
+              file_in, file_out, rootname, hdr_dict,
+              clobber=True, plotmatrix=False,
+              ):
 
     # data0 = idx
     # data1 = finalgain
@@ -151,8 +154,13 @@ def write_rel(data_idx, data_gain, data_offset,
     c2 = fits.Column(name=cols_in.names[1], array=data_gain, format=cols_in.formats[1])
     c3 = fits.Column(name=cols_in.names[2], array=data_offset, format=cols_in.formats[2])
 
+    hdr_in["HISTORY"] = "-----------------------------------------------------------"
+    hdr_in["HISTORY"] = "Gain-Offset matrix updated on {}".format(datetime.now())
+    hdr_in["HISTORY"] = "   with code version {}".format(hdr_dict['version'])
+    hdr_in["HISTORY"] = "   from data in range: {}".format(hdr_dict['data range'])
+
     ## From columns to FITS table
-    output_table = fits.BinTableHDU.from_columns([c1, c2, c3])
+    output_table = fits.BinTableHDU.from_columns([c1, c2, c3], header=hdr_in)
     
     if plotmatrix:
         ### DEVELOPEMENT -- TO PERMIT LESS THAN 6400 PIXEL MATRICES

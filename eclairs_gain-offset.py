@@ -49,6 +49,7 @@ Output include:
  * ??? anything more ???
 
 """
+__version__ = "0.9.0"
 
 def range_limited_int(arg):
     """ Type function for argparse - an int within some predefined bounds """
@@ -74,12 +75,14 @@ parser.add_argument("--rootname", help="Outputs rootname", type=str, default="De
 parser.add_argument("--tolerance", help="Filtering tolerance (default=4)", type=int, default=4)
 parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
 parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
+## TODO Pixel choise by intervals or list or whatever...
 parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
 parser.add_argument("--plots", help="Makes initial and final plots (default=False)", default=False, action='store_true')
 parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
 parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution)", default=False, action='store_true')
 parser.add_argument("--width", help="width (in keV) for energy redistribution", type=float, default=1.1)
 parser.add_argument("--logfile", help="Name of logfile (default=rootname.log)", type=str, default=None)
+## TODO BAD PIXELS
 parser.add_argument("--loglevel", help="Log Level (DEBUG, INFO, WARNING, ERROR, CRITICAL), Default=WARNING", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default="WARNING")
 
 args = parser.parse_args()
@@ -236,10 +239,17 @@ def mainrun(input_relation, output_relation,
     # Makes the output data into a numpy array
     #data = np.array(data_output)
 
+    # Make an header dictionnary to update the output FITS header
+    hdr_dict = {'version': __version__,
+                'data range': '2021 to 2022',  ## TODO: to implement with data range once available
+                }
+
     # Writes output gain-offset matrix to file ()
     write_rel(idx,final_gains,final_offset,
               input_relation, output_relation, rootname,
-              clobber=True, plotmatrix=args.plots)
+              hdr_dict=hdr_dict,
+              clobber=True, plotmatrix=args.plots,
+              )
 
     # Organizes the initial gains and offset from input matrix
     indices        = relations0[pix, 0]
