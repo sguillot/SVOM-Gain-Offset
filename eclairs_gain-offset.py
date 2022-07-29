@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 import tqdm
 import logging as log
 from os import path
-from datetime import date
-
+from datetime import datetime
 # MultiProc
 from multiprocessing import Pool
 
@@ -26,8 +25,8 @@ from svom.io_utils import write_rel
 # from svom.utils import Ch2En
 import svom.plot_utils as plot_utils
 from svom.fit_utils import FittingEngine
-from svom.file_reader import FileReader as ParamReader
-
+#from svom.file_reader import FileReader as ParamReader
+from svom.params_reader import ParamsReader
 
 desc = """
 Fit of fluorescence lines in background spectra 
@@ -49,55 +48,58 @@ Output include:
  * ??? anything more ???
 
 """
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
-def range_limited_int(arg):
-    """ Type function for argparse - an int within some predefined bounds """
-    min_val = 1
-    max_val = 6400
-    if arg is not None:
-        try:
-            f = int(arg)
-        except ValueError:
-            raise argparse.ArgumentTypeError("Must be an int")
-        if f < min_val or f > max_val:
-            raise argparse.ArgumentTypeError("Argument must be > {} and < {}".format(min_val, max_val))
-        return f
+# def range_limited_int(arg):
+#     """ Type function for argparse - an int within some predefined bounds """
+#     min_val = 1
+#     max_val = 6400
+#     if arg is not None:
+#         try:
+#             f = int(arg)
+#         except ValueError:
+#             raise argparse.ArgumentTypeError("Must be an int")
+#         if f < min_val or f > max_val:
+#             raise argparse.ArgumentTypeError("Argument must be > {} and < {}".format(min_val, max_val))
+#         return f
 
 parser = argparse.ArgumentParser(description=desc)
 parser.add_argument("-c", "--config_file", type=str, help='Config file')
+
 # TODO:  THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
-parser.add_argument("--spectra", help="Input spectra (fits file matrix of 6400 spectra)", type=str, default=None)
-parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", type=str, default=None)
-parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")
-parser.add_argument("--rootname", help="Outputs rootname", type=str, default="Default")
+# parser.add_argument("--spectra", help="Input spectra (fits file matrix of 6400 spectra)", type=str, default=None)
+# parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", type=str, default=None)
+# parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")
+# parser.add_argument("--rootname", help="Outputs rootname", type=str, default="Default")
 # OPTIONAL ARGUMENTS
-parser.add_argument("--tolerance", help="Filtering tolerance (default=4)", type=int, default=4)
-parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
-parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
+# parser.add_argument("--tolerance", help="Filtering tolerance (default=4)", type=int, default=4)
+# parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
+# parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
 ## TODO Pixel choise by intervals or list or whatever...
-parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
-parser.add_argument("--plots", help="Makes initial and final plots (default=False)", default=False, action='store_true')
-parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
-parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution)", default=False, action='store_true')
-parser.add_argument("--width", help="width (in keV) for energy redistribution", type=float, default=1.1)
-parser.add_argument("--logfile", help="Name of logfile (default=rootname.log)", type=str, default=None)
+# parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
+# parser.add_argument("--plots", help="Makes initial and final plots (default=False)", default=False, action='store_true')
+# parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
+# parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution)", default=False, action='store_true')
+# parser.add_argument("--width", help="width (in keV) for energy redistribution", type=float, default=1.1)
+# parser.add_argument("--logfile", help="Name of logfile (default=rootname.log)", type=str, default=None)
+# parser.add_argument("--loglevel", help="Log Level (DEBUG, INFO, WARNING, ERROR, CRITICAL), Default=WARNING", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default="WARNING")
 ## TODO BAD PIXELS
-parser.add_argument("--loglevel", help="Log Level (DEBUG, INFO, WARNING, ERROR, CRITICAL), Default=WARNING", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default="WARNING")
 
-args = parser.parse_args()
+file_arg = parser.parse_args()
+reader = ParamsReader(file_arg.config_file, parser)
+args = reader.load_parameters_file()
 
-if args.config_file:
-    config = configparser.ConfigParser()
-    config.read(args.config_file)
-    defaults = {}
-    defaults.update(dict(config.items("Defaults")))
-    for arg in vars(args):
-        if type(getattr(args, arg)) is bool:
-            if arg in defaults:
-                defaults[arg] = config.getboolean('Defaults', arg)
-    parser.set_defaults(**defaults)
-    args = parser.parse_args()        # Overwrite arguments from the parser
+# if args.config_file:
+#     config = configparser.ConfigParser()
+#     config.read(args.config_file)
+#     defaults = {}
+#     defaults.update(dict(config.items("Defaults")))
+#     for arg in vars(args):
+#         if type(getattr(args, arg)) is bool:
+#             if arg in defaults:
+#                 defaults[arg] = config.getboolean('Defaults', arg)
+#     parser.set_defaults(**defaults)
+#     args = parser.parse_args()        # Overwrite arguments from the parser
 
 # DEPRECATED - plotall now works in Pool
 # if (args.plotall is True) and (args.proc > 1):
@@ -108,13 +110,23 @@ if args.config_file:
 
 # MAIN RUN CALL
 def mainrun(input_relation, output_relation,
-            input_spec, outdir, outname,
+            input_spec, workdir, # outname,
             exp=None, inputrel=None):
 
     # OUTFILE ROOTNAME (CREATING DIRECTORY IF NEEDED)
-    rootname = path.join(outdir, outname)
-    if not os.path.exists(rootname):
-        os.makedirs(rootname)
+    # rootname = path.join(outdir, outname)
+    # if not os.path.exists(rootname):
+    #     os.makedirs(rootname)
+
+    # Output directoru
+    outdir = path.join(workdir, 'outputs/')
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+    # Intermediate product directory
+    tempdir = path.join(workdir, 'temp_products/')
+    if not os.path.exists(tempdir):
+        os.makedirs(tempdir)
 
     # READ INPUT GAIN/OFFSET VALUES
     # NEEDED FOR PERFORMANCE TESTS RETRIEVE TRUE INPUT VALUES)
@@ -133,7 +145,7 @@ def mainrun(input_relation, output_relation,
 
     # READ INPUT GAIN/OFFSET MATRIX
     # Option 'randomize' permits adding small errors to input gain and offset
-    relations0 = read_rel(input_relation, rootname, randomize=False, plotmatrix=args.plots)
+    relations0 = read_rel(input_relation, outdir, randomize=False, plotmatrix=args.plots)
 
     # READ INPUT LINES INFO (fit intervals, line centroids)
     #      Currently an ASCII file - could be replaced by FITS file with spectral line info.
@@ -144,7 +156,7 @@ def mainrun(input_relation, output_relation,
 
     # READ INPUT SPECTRUM AND RETURN ARRAY OF SPECTRUM ARRAYS AND THE EXPOSURE
     #     DEV:  GEANT4 BACKGROUND (REPROCESSED TO CONTAIN 1 SPECTRUM FOR EACH PIXEL)
-    spectra, exposure = read_spec(input_spec, rootname, plotspec=args.plots)
+    spectra, exposure = read_spec(input_spec, outdir, plotspec=args.plots)
     if exposure is not None:
         exp = exposure
 
@@ -152,8 +164,8 @@ def mainrun(input_relation, output_relation,
     #    Option useful to visualize relative line strength (to use with --plotall)
     if args.showrawspec:
         from svom.io_utils import read_rawspec
-        rawspec_file = path.join(workdir, "BACKGROUNDS/spectrum_NoRedistribution.fits")
-        rawspec = read_rawspec(rawspec_file, rootname, plotspec=args.plots)
+        rawspec_file = path.join(workdir, "../BACKGROUNDS/spectrum_NoRedistribution.fits")
+        rawspec = read_rawspec(rawspec_file, outdir, plotspec=args.plots)
     else:
         rawspec = None
 
@@ -161,13 +173,14 @@ def mainrun(input_relation, output_relation,
     #  setting the number of pixels to Nb of pixels in spectra matrix file.
     if args.nbpix is not None:
         pix = np.arange(0, args.nbpix)
-        if args.pixels is not None:
-            args.pixels = None
-            log.warning("Ignoring --pixels (conflicting with --nbpix)")
+        # TODO Figure out how to have pixels with single int, list or range...
+        # if args.pixels is not None:
+        #     args.pixels = None
+        #     log.warning("Ignoring --pixels (conflicting with --nbpix)")
     else:
         pix = np.arange(0, len(spectra['pixel']))
-        if args.pixels is not None:
-            pix = [p-1 for p in args.pixels]
+        # if args.pixels is not None:
+        #     pix = [p-1 for p in args.pixels]
 
 
     ################################################################################
@@ -175,14 +188,14 @@ def mainrun(input_relation, output_relation,
 
     t0 = time.time()
     if args.proc > 1:
-        log.info("Running for {} pixels on {} processors...".format(len(pix), args.proc))
-        log.info("...")
+        # log.info("Running {} for {} pixels on {} processors...".format(__file__, len(pix), args.proc))
         try:
             # Initiates the Multiprocessing Pool
             pool = Pool(args.proc)
 
             # Initiates the FittingEngine Object
-            fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+            fit_engine = FittingEngine(spectra, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+            log.info("FittingEngine initialized for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
 
             # Maps the Multiprocessing Pool with the FittingEngine
             # for the selected pixels (default, or from options --nbpix or --pixels)
@@ -211,11 +224,11 @@ def mainrun(input_relation, output_relation,
         LMFit_RedChi2 = np.zeros(len(pix))
         LMFit_LargeErr = np.zeros(( len(pix),len(np.concatenate(centroids).ravel())) )
 
-        log.info("Running for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
-        log.info("...")
+#        log.info("Running {} for {} pixels on {} processor (using a 'for' loop)...".format(path.basename(__file__),  len(pix), args.proc))
 
         # Initiates the FittingEngine Object
-        fit_engine = FittingEngine(spectra, intervals, centroids, args.width, rootname, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+        fit_engine = FittingEngine(spectra, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+        log.info("FittingEngine initialized for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
 
         # Calls the FittingEngine object for the selected pixels (default, or from options --nbpix or --pixels)
         for i, idet in enumerate(tqdm.tqdm(relations0[pix], total=len(pix), position=0, leave=True)):
@@ -229,7 +242,8 @@ def mainrun(input_relation, output_relation,
             LMFit_LargeErr[i,:] = tmp_LMFit_LargeErr
             #data_output.append(np.array(output))
 
-    log.info("Time necessary for 6400 pixels: {:0.1f} sec - for {} processors".format((6400/len(pix))*(time.time()-t0), args.proc))
+    log.info("Terminated in {:0.1f} sec".format(time.time()-t0))
+    log.info("  Time necessary for 6400 pixels: {:0.1f} sec - for {} processors".format((6400/len(pix))*(time.time()-t0), args.proc))
     ##
     #####################################################################################
 
@@ -246,7 +260,7 @@ def mainrun(input_relation, output_relation,
 
     # Writes output gain-offset matrix to file ()
     write_rel(idx,final_gains,final_offset,
-              input_relation, output_relation, rootname,
+              input_relation, output_relation, outdir,
               hdr_dict=hdr_dict,
               clobber=True, plotmatrix=args.plots,
               )
@@ -283,8 +297,8 @@ def mainrun(input_relation, output_relation,
     change_offset[mask_offset] = np.nan
     output_change_offset = np.column_stack((indices[np.invert(mask_offset)], final_offset[np.invert(mask_offset)]))
 
-    np.savetxt("{}/change_gain_pixels.txt".format(rootname), output_change_gain, fmt='%4d %1.5f', delimiter='\t')
-    np.savetxt("{}/change_offset_pixels.txt".format(rootname), output_change_offset, fmt='%4d %1.5f', delimiter='\t')
+    np.savetxt("{}/change_gain_pixels.txt".format(outdir), output_change_gain, fmt='%4d %1.5f', delimiter='\t')
+    np.savetxt("{}/change_offset_pixels.txt".format(outdir), output_change_offset, fmt='%4d %1.5f', delimiter='\t')
 
     # Summary plots if option --plots is set
     #
@@ -295,18 +309,18 @@ def mainrun(input_relation, output_relation,
                                               final_gains, initial_gains, final_gains_err,
                                               final_offset, initial_offset, final_offset_err)
         comp_fig.suptitle("Best fit gain and offset - {} pixels - Exposure: {} ks".format(len(pix), exp))
-        comp_fig.savefig("{}/gain_offset_comparisons.png".format(rootname))
+        comp_fig.savefig("{}/gain_offset_comparisons.png".format(outdir))
 
         # Fit Statistics figure
         fitstat_fig = plot_utils.plot_fit_stats(indices, LMFit_RedChi2, LMFit_LargeErr, centroids)
         fitstat_fig.suptitle("Fit Statistics - {} pixels - Exposure: {} ks".format(len(pix), exp))
-        fitstat_fig.savefig("{}/fit_statistics.png".format(rootname))
+        fitstat_fig.savefig("{}/fit_statistics.png".format(outdir))
 
         # Reconstruction uncertainty, requirements, and pass fraction
         rec_fig, _ = plot_utils.plot_reconstruction(final_gains, final_offset,
                                                  final_gains_err, final_offset_err)
         rec_fig.suptitle("Reconstruction uncertainty - {} pixels - Exposure: {} ks".format(len(pix), exp))
-        rec_fig.savefig("{}/reconstruction_uncertainties.png".format(rootname))
+        rec_fig.savefig("{}/reconstruction_uncertainties.png".format(outdir))
 
         # Matrix of output differences
         # DEVELOPEMENT -- TO PERMIT LESS THAN 6400 PIXEL MATRICES
@@ -320,7 +334,7 @@ def mainrun(input_relation, output_relation,
 
         fig_diff = plot_utils.plot_matrix(change_gain_mat, change_offset_mat)
         fig_diff.suptitle("Matrices of changes of gain and offsets (>3 sigma changes)")
-        fig_diff.savefig("{}/change_matrix.png".format(rootname))
+        fig_diff.savefig("{}/change_matrix.png".format(outdir))
 
         plt.close('all')
 
@@ -337,16 +351,16 @@ def mainrun(input_relation, output_relation,
             # Histogram of differences between fitted and true/input values
             diff_fig = plot_utils.plot_difference(diff_gains, diff_offsets, bins=30)
             diff_fig.suptitle("Gain and offset differences from input values - {} pixels - Exposure: {} ks".format(len(pix), exp))
-            diff_fig.savefig("{}/gain_offset_histograms.png".format(rootname))
+            diff_fig.savefig("{}/gain_offset_histograms.png".format(outdir))
 
             # Reconstruction errors (DIFFERENCE), requirements, and pass fraction
             rec_fig, pix_over_specs = plot_utils.plot_reconstruction(final_gains, final_offset,
                                                      (final_gains - original_gain[pix]),
                                                      (final_offset - original_offset[pix]))
             rec_fig.suptitle("Reconstruction Difference - {} pixels - Exposure: {} ks".format(len(pix), exp))
-            rec_fig.savefig("{}/reconstruction_difference.png".format(rootname))
+            rec_fig.savefig("{}/reconstruction_difference.png".format(outdir))
 
-            np.savetxt("{}/pixels_over_specs.txt".format(rootname), pix_over_specs, fmt='%04d', newline='\n')
+            np.savetxt("{}/pixels_over_specs.txt".format(outdir), pix_over_specs, fmt='%04d', newline='\n')
 
             # Comparison of best fit gain/offset for all pixels
             comp_fig = plot_utils.plot_comparison(indices,
@@ -355,46 +369,50 @@ def mainrun(input_relation, output_relation,
                                                   pix_over_specs=pix_over_specs)
             #comp_fig.tight
             comp_fig.suptitle("Best fit gain and offset - {} pixels - Exposure: {} ks".format(len(pix), exp))
-            comp_fig.savefig("{}/gain_offset_comparisons.png".format(rootname))
+            comp_fig.savefig("{}/gain_offset_comparisons.png".format(outdir))
             plt.tight_layout()
             plt.close('all')
 
 
 if __name__ == '__main__':
 
-    # Working directory root
-    workdir = path.dirname(path.realpath(__name__))
+    # Workspace directory root
+    workdir = path.join(path.dirname(path.realpath(__name__)), "Workspace/")
 
-    if args.logfile is not None:
-        log.basicConfig(filename = path.join(workdir,"LOGS/{}".format(args.logfile)),
-                        level = args.loglevel,
-                        format = "%(asctime)s: %(name)s : %(funcName)s: %(levelname)s: %(message)s",
-                        # format="%(asctime)s [%(levelname)s] %(message)s",
-                        )
-    else:
-        log.basicConfig(level = args.loglevel,
-                        format = "%(asctime)s: %(name)s : %(funcName)s: %(levelname)s: %(message)s",
-                        # format="%(asctime)s [%(levelname)s] %(message)s",
-                        )
-
-    log.getLogger('matplotlib').setLevel(log.WARNING)
-
+    # Inputs
     # Input gain-offset matrix
     filerel_in  = path.join(workdir, "RELATION/{}".format(args.matrix))
+    # Input centroids of lines to fit  *** could eventually be a fits file with line information
+    filelines   = path.join(workdir, "LINES_INFOS/{}".format(args.lines))
+    # Input spectra                    *** for now a background -- will have to come from caldb
+    inspec = path.join(workdir, "BACKGROUNDS/{}".format(args.spectra))
+
+    # Outputs
+    # Temporary workspace
+    outdir = path.join(workdir, "gainoffset-{}/".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
+    outdir = path.join(workdir, "gainoffset-{}/".format(datetime.now().strftime("%Y%m%d")))         ## USE THIS FOR NOW
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+        os.makedirs(path.join(outdir,'outputs/'))
 
     # Output gain-offset matrix
-    filerel_out = path.join(workdir, "RELATION/AUX-ECL-PIX-CAL-{}.fits".format(date.today().strftime("%Y%m%d")))
 
-    # Input centroids of lines to fit
-    #   *** could eventually be a fits file with line information
-    filelines   = path.join(workdir, "LINES_INFOS/{}".format(args.lines))
+    filerel_out = path.join(outdir, "outputs/AUX-ECL-PIX-CAL-{}.fits".format(datetime.now().strftime("%Y%m%d-%H%M%S")))
 
-    # FINAL VERSION SHOULD LOOK LIKE THIS:
-    inspec = path.join(workdir, "BACKGROUNDS/{}".format(args.spectra))
-    outdir = path.join(workdir, "RESULTS")
-    inrel = path.join(workdir, "RELATION/exact_Full_matrix_rel_6400pix_1000ks.txt")
+    # Output log
+    log.basicConfig(filename = path.join(outdir,"gainoffset-{}.log".format(datetime.now().strftime("%Y%m%d-%H%M%S"))),
+                    level = args.loglevel,
+                    format = "%(asctime)s: %(funcName)-16s - %(levelname)-10s: %(message)s",
+                    # format="%(asctime)s [%(levelname)s] %(message)s",
+                    )
+    log.getLogger('matplotlib').setLevel(log.WARNING)
+
+    # READ INPUT GAIN/OFFSET VALUES
+    # NEEDED FOR PERFORMANCE TESTS RETRIEVE TRUE INPUT VALUES)
+    # FOR DEVELOPMENT ONLY
+    inrel = path.join(workdir, "RELATION/real_input/exact_Full_matrix_rel_6400pix_1000ks.txt")
 
     mainrun(filerel_in, filerel_out,
             inspec,
-            outdir, args.rootname,
+            outdir,
             exp=1000, inputrel=inrel)

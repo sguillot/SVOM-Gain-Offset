@@ -40,6 +40,7 @@ def read_rel(filename,rootname, randomize=False,plotmatrix=False):
         offset_mat = np.reshape(offsets, (80,80))
         
         fig_mat = plot_utils.plot_matrix(gain_mat,offset_mat)
+        log.debug("Input gain-offset matrix {} plotted as input_matrix.png".format(path.basename(filename)))
         fig_mat.savefig("{}/input_matrix.png".format(rootname))
         
     ### Stacks the DETID, GAIN, OFFSET columns into a single array (needs three arrays of equal lengths)
@@ -47,7 +48,7 @@ def read_rel(filename,rootname, randomize=False,plotmatrix=False):
         relations_table = np.column_stack((detIDs,gains,offsets))
         return relations_table 
     except:
-        log.error("Error stacking the table of gain/offsets from fits file")
+        log.error("Error stacking the table of gain/offsets from fits file. Exiting!")
         exit()
         
 
@@ -57,17 +58,18 @@ def read_spec(filename,rootname,plotspec=False):
     evtfile = fits.open(filename)
     evtdata = evtfile[1].data
     hdr  = evtfile[1].header
-    log.info("Spectral file {} loaded: {} spectra".format(path.basename(filename),len(evtdata['pixel'])))
+    log.info("Input spectral file {} loaded: {} spectra --- DEVELOPMENT".format(path.basename(filename),len(evtdata['pixel'])))
 
     ### Get the exposure
     try:
         Exposure = hdr['EXPOSURE']
     except KeyError:
-        log.warning("Can't read exposure from spectrum - Keyword does not exist in header")
+        log.warning("Can't read exposure from Input spectral file {} - Keyword does not exist in header".format(path.basename(filename)))
         Exposure = None
 
     ## Plots only one of the input spectra (the one from pixel 0)
     if plotspec:
+        log.debug("Input spectral file {} plotted as input_spectrum_channel.png".format(path.basename(filename)))
         log.warning("Plotting only one spectrum (out of {})".format(len(evtdata['pixel'])))
         spec_fig = plot_utils.plot_spec_ch(np.arange(evtdata['channels'][0]),evtdata['spectrum'][0])
         spec_fig.savefig('{}/input_spectrum_channel.png'.format(rootname),dpi=100)
@@ -83,7 +85,7 @@ def read_rawspec(filename,rootname, plotspec=False):
     evtfile = fits.open(filename)
     evtdata = evtfile[1].data
     hdr  = evtfile[1].header
-    log.info("Raw (no redistribution) spectral file loaded: {} spectra".format(len(evtdata[0])-1))
+    log.info("Input raw (no redistribution) spectral file {} loaded: {} spectra --- DEVELOPMENT".format(path.basename(filename),len(evtdata[0])-1))
 
     if plotspec:
         spec_fig = plot_utils.plot_spec_en(evtdata['energy'],evtdata['pix'])
@@ -110,7 +112,7 @@ def read_lines(filename):
             all_intervals.append(interval)
             all_centroids.append(centroids)
     f.close()
-    log.info("Centroid file {} loaded".format(path.basename(filename)))
+    log.info("Input centroids file {} loaded".format(path.basename(filename)))
 
     if len(all_intervals)!=len(all_centroids):                          # checking numbers of line blocks
         log.error("Error with Nb of blocks. Exiting!")
@@ -139,7 +141,7 @@ def write_rel(data_idx, data_gain, data_offset,
             log.info("File {} will be overwritten".format(path.basename(file_out)))
             os.remove(file_out)
         else:
-            log.warning("File {} already exists. Set clobber=True to overwrite.".format(path.basename(file_out)))
+            log.error("File {} already exists. Set clobber=True to overwrite.".format(path.basename(file_out)))
 
     ## Open previous matrix to copy column names for the output -- it's not the best way to do it :-(        
     matrix_in = fits.open(file_in)
@@ -176,12 +178,11 @@ def write_rel(data_idx, data_gain, data_offset,
             fig_mat = plot_utils.plot_matrix(gain_mat,offset_mat)
             fig_mat.suptitle("Input matrix for gain and offset")
             fig_mat.savefig("{}/output_matrix.png".format(rootname))
+            log.debug("Making output_matrix.png figure")
         except:
-            log.warning("Problem plotting output matrix (check matrix size).")
+            log.warning("Problem plotting output matrix (check matrix size)")
 
 
-
-    
     ## Writes output_table to FITS file
     try:
         output_table.writeto(file_out)
