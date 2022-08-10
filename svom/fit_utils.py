@@ -184,8 +184,6 @@ class FittingEngine(object):
             xdata.append(x)
             ydata.append(y)
 
-#        log.debug(fit_params.pretty_print(columns=['value', 'min', 'max', 'expr']))   ## TODO this function prints to stdout and not Logfile
-
         # Adding 0.5 channel to xdata (as float) to represent the centers of the channels.
         # TODO: Raises a VisibleDeprecationWarning - this could be fixed
         xdata = np.array(xdata) + 0.5
@@ -204,8 +202,9 @@ class FittingEngine(object):
 
         # TODO: Check convergence
         # TODO: Check why errors are large sometimes!
-        # Full report of the fit (lots of text)
-        # log.debug(fit_report(FitResult))
+        for param in FitResult.params.values():
+            blockNb = int(param.name.split('_')[1]) + 1
+            log.debug("  Pixel {:4.0f}:  Block {}:  {:<8}:  {:8.3f} +/- {:8.3f} (init = {:8.3f})".format(idx0, blockNb, param.name, param.value, param.stderr, param.init_value))
 
         # Get the best-fit centroids and their uncertainties from FitResult
         fit_centroids = np.array([FitResult.params[key].value for key in FitResult.params if key.startswith("cen")])
@@ -216,8 +215,9 @@ class FittingEngine(object):
             log.error('  Pixel {:4.0f}:  FitError - Write a FitError  Exception?'.format(idx0))   ## TODO Write / Catch the FitError exception ?
             log.error('     Status = {}, Reduced ChiSq = {:.4f}'.format(FitResult.success, FitResult.redchi))
         else:
-            log.info('  Pixel {:4.0f}:  Spectral lines fit successful:  Reduced ChiSq = {:.4f}'.format(idx0, FitResult.redchi))
+            log.info('  Pixel {:4.0f}:  Spectral lines fit successful:  Reduced ChiSq = {:.4f} ({:.2f}/{})'.format(idx0, FitResult.redchi, FitResult.chisqr, FitResult.nfree))
 
+        # Calculating the Chi2 for each block
         Chi2 = np.zeros(len(self.intervals))
         for (i, interval) in enumerate(self.intervals):
             # Convert centroids and intervals into channel, assuming input gain and offset
@@ -231,8 +231,8 @@ class FittingEngine(object):
 
             # Defines the best-fit model (continuum+Gaussian) for current block i
             bestfit = BlockModel(FitResult.params, spec_block[:, 0], i, self.NbGaussians[i])
-            Chi2[i] = np.sum((spec_block[:,1]-bestfit)**2 / np.sqrt(spec_block[:,1]))
-
+            Chi2[i] = np.sum((spec_block[:,1]-bestfit)**2 / spec_block[:,1])
+            # todo: Use these Chi2 to ignore outliers if bad fit!
 
         #  Loop on all intervals to plot the blocks    
         if self.plots:
@@ -294,7 +294,8 @@ class FittingEngine(object):
                 plot_utils.plot_block(spec_block, spec_block[[0, -1]],
                                       continuum, bestfit, initguess,
                                       np.array(centroid_ch), block_centroids, block_err_centroids, tolerance=self.tolerance)
-                ax1.text(0.05, 0.95, '{:.2f}'.format(Chi2[i]), horizontalalignment='center', verticalalignment='center',transform=ax1.transAxes)
+                # TODO: Check why sum(Chi2) is differente from the LMFIT-Chi2
+                ax1.text(0.25, 0.93, '{:.2f} ({} pts)'.format(Chi2[i], len(x)), horizontalalignment='center', verticalalignment='center',transform=ax1.transAxes)
 
                 # Plot residuals, initial centroids, and best-fit centroids with uncertainties, for the current block 
                 ax2 = plt.subplot(fig_grid[withrawspec+1, i])
@@ -315,9 +316,9 @@ class FittingEngine(object):
             handles, labels = ax1.get_legend_handles_labels()
             figure1.legend(handles, labels, loc='upper right')
             plt.tight_layout(pad=1.0, w_pad=0.3, h_pad=1.0)
+            figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{} vs {:.2f})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree, np.sum(Chi2)))
             figure1.savefig("{}/spec_blocks_PIX{:0>4}.png".format(self.rootname, int(idx0)))
             log.debug("  Pixel {:4.0f}:  Making figure spec_blocks_PIX{:0>4}.png".format(idx0, int(idx0)))
-            plt.close('all')
             
         # Checking uncertainties values of centroids 
         if np.any(err_centroids == 0.0):
@@ -391,8 +392,7 @@ class FittingEngine(object):
                                                   err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx,
                                                   stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                   originals=[gain0, offset0])
-
-            rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
+            rel_figure.suptitle("Channel-Energy Fit for {} ks -- pixel {}".format(self.exposure, int(idx0)))
             rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}.png".format(self.rootname, int(idx0)))
             log.debug("  Pixel {:4.0f}:  Making figure ch_en_relation_PIX{:0>4}.png".format(idx0, int(idx0)))
 
@@ -423,7 +423,7 @@ class FittingEngine(object):
                                                       err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None,
                                                       stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                       originals=[gain0, offset0])
-                rel_figure.suptitle("Channel-Energy Fit - pixel {} - Exposure: {} ks".format(int(idx0), self.exposure))
+                rel_figure.suptitle("Refitted Channel-Energy Fit for {} ks -- pixel {}".format(self.exposure, int(idx0)))
                 rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}_REFITTED.png".format(self.rootname, int(idx0)))
                 log.debug("  Pixel {:4.0f}:  Making refitted figure ch_en_relation_PIX{:0>4}_REFITTED.png".format(idx0, int(idx0)))
 

@@ -56,12 +56,9 @@ Use option --help for more details.
 
 A VERIFIER / A AMELIORER
 
-- Verifier et adjuster tous les prints de logging (fit quality par pixel?, etc)
 - Verifier la convergence du fit (avec LMFIT) et les estimations des barres d'erreur.
 - Verifier pourquoi le fit du gain et de l'offset (directement) a des barres d'erreur très large.
 - Rajouter les infos sur les pixels (X,Y) à partir du DETNUM.
-- Check title (pix Number) in diagnostic plots.
-
 - Ecrire script pour faire l'historique des Gains/Offset des pixels (à partir de plusieurs fichiers)
 
 
@@ -78,4 +75,8 @@ DONE:
 - Add centroid values to Ticks in Plot_Fit_statistics
   - DONE
 - Ajouter HISTORY keywords dans HEADER de l'output (input parameters, code version, etc)
+  - DONE
+- Verifier et adjuster tous les prints de logging (fit quality par pixel?, etc)
+  - DONE
+- Check title (pix Number) in diagnostic plots.
   - DONE
