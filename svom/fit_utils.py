@@ -129,9 +129,9 @@ class FittingEngine(object):
             exit()
 
         # Check if idx0 is a bad pixel. If yes, return 0
+        nbgaussians = len(np.concatenate(self.centroids).ravel())
         if self.badpixels[idx0]:
             log.info("  Pixel {:4.0f}:  BAD PIXEL".format(idx0))
-            nbgaussians = len(np.concatenate(self.centroids).ravel())
             return idx0, 0, 0, 0, 0, 0, np.full(nbgaussians, False)
 
         # Background spectrum for pixel idx0
@@ -228,7 +228,9 @@ class FittingEngine(object):
             log.info('  Pixel {:4.0f}:  Spectral lines fit successful:  Reduced ChiSq = {:.4f} ({:.2f}/{})'.format(idx0, FitResult.redchi, FitResult.chisqr, FitResult.nfree))
 
         # Calculating the Chi2 for each block
-        Chi2 = np.zeros(len(self.intervals))
+        BlockChi2    = np.zeros(len(self.intervals))
+        BlockRedChi2 = np.zeros(len(self.intervals))
+        BlockDoF     = np.zeros(len(self.intervals))
         for (i, interval) in enumerate(self.intervals):
             # Convert centroids and intervals into channel, assuming input gain and offset
             centroid = self.centroids[i]  # get numpy array of centroids for that line block
@@ -239,10 +241,16 @@ class FittingEngine(object):
             mask_block = (spectrum[:, 0] >= interval_ch[0]) & (spectrum[:, 0] <= interval_ch[1])
             spec_block = spectrum[mask_block]
 
+            # Count DoF for current block i
+            BlockDoF[i] = len(spec_block[:, 1])
+            for param in fit_params.values():
+                if ((int(param.name.split('_')[1])) == i) and (param.expr is None):
+                    BlockDoF[i] = BlockDoF[i] - 1
+
             # Defines the best-fit model (continuum+Gaussian) for current block i
             bestfit = BlockModel(FitResult.params, spec_block[:, 0], i, self.NbGaussians[i])
-            Chi2[i] = np.sum((spec_block[:,1]-bestfit)**2 / spec_block[:,1])
-            # todo: Use these Chi2 to ignore outliers if bad fit!
+            BlockChi2[i] = np.sum((spec_block[:, 1] - bestfit) ** 2 / spec_block[:, 1])
+            BlockRedChi2[i] = BlockChi2[i]/BlockDoF[i]
 
         #  Loop on all intervals to plot the blocks    
         if self.plots:
@@ -304,15 +312,17 @@ class FittingEngine(object):
                 plot_utils.plot_block(spec_block, spec_block[[0, -1]],
                                       continuum, bestfit, initguess,
                                       np.array(centroid_ch), block_centroids, block_err_centroids, tolerance=self.tolerance)
-                # TODO: Check why sum(Chi2) is differente from the LMFIT-Chi2
-                ax1.text(0.25, 0.93, '{:.2f} ({} pts)'.format(Chi2[i], len(x)), horizontalalignment='center', verticalalignment='center',transform=ax1.transAxes)
+                # TODO: Check why sum(Chi2) is different from the LMFIT-Chi2
+                ax1.text(0.3, 0.93, '{:.2f} ({:.2f}/{})'.format(BlockRedChi2[i], BlockChi2[i], BlockDoF[i]),
+                         color = 'r' if BlockRedChi2[i]>1.5 else 'b',
+                         horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
 
                 # Plot residuals, initial centroids, and best-fit centroids with uncertainties, for the current block 
                 ax2 = plt.subplot(fig_grid[withrawspec+1, i])
                 plot_utils.plot_block(spec_block, spec_block[[0, -1]],
                                       continuum, bestfit, initguess,
                                       np.array(centroid_ch), block_centroids, block_err_centroids, only_residuals=True)
-                
+
                 # Define labels...
                 if i == 0:
                     ax2.set_ylabel('residuals')
@@ -326,7 +336,7 @@ class FittingEngine(object):
             handles, labels = ax1.get_legend_handles_labels()
             figure1.legend(handles, labels, loc='upper right')
             plt.tight_layout(pad=1.0, w_pad=0.3, h_pad=1.0)
-            figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{} vs {:.2f})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree, np.sum(Chi2)))
+            figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{} vs {:.2f})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree, np.sum(BlockChi2)))
             figure1.savefig("{}/PIX{:0>4}_spec_blocks.png".format(self.rootname, int(idx0)))
             log.debug("  Pixel {:4.0f}:  Making figure PIX{:0>4}_spec_blocks.png".format(idx0, int(idx0)))
             plt.close('all')
@@ -338,15 +348,9 @@ class FittingEngine(object):
         if np.any(err_centroids == None):
             err_centroids = None                                                                  # If one of them is None, they are all None.
 
-        # DEPRECATED (Not useful diagnostic)
-        # LargeErrors = (err_centroids / fit_centroids) > 0.05
-        LargeErrors = np.full(len(err_centroids), False)
 
         # EXCLUDE CENTROIDS WITH LARGE ERRORS
         fit_ini_centroids = self.all_ini_centroids
-        #fit_ini_centroids = self.all_ini_centroids[~LargeErrors]
-        #fit_centroids = fit_centroids[~LargeErrors]
-        #err_centroids = err_centroids[~LargeErrors]
 
         # Now fitting the linear relation between fitted centroids (in channels)
         #    and true energies of spectral lines
@@ -378,28 +382,32 @@ class FittingEngine(object):
 
         #cent_mean, cent_median, cent_stddev = sigma_clipped_stats((fit_centroids-FitRel),
         #                                                          maxiters=3, sigma_lower=3, sigma_upper=3)  # Calculate the statistics of centroids values
-        # bad_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                          # Get the indices of those that deviate by >4 sigma
+        # bad_cent_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                              # Get the indices of those that deviate by >4 sigma
 
-        # bad_idx = (np.abs(fit_centroids-FitRel)) > np.abs(HighBound-FitRel)
-        # if np.any(bad_idx):
-        #     log.warning(" Pixel {:4.0f} -- Some centroids are outliers (will be shown in red on plot)".format(idx0))
-        #     log.warning("                  Re-run for pixel {:4.0f} with option --plotall to see outliers".format(idx0))
-        # else:
-        #     bad_idx = None
+        # Exclude Centroids from linear fit if Chi2 of block > 1.5
+        BadChi2_cent_idx = np.full(nbgaussians, False)
+        tmp_idx = 0
+        for (i, interval) in enumerate(self.intervals):
+            for (j, cen) in enumerate(self.centroids[i]):
+                if BlockRedChi2[i]>1.5:
+                    BadChi2_cent_idx[tmp_idx]= True
+                tmp_idx=tmp_idx+1
 
+        # Exclude Centroids from linear fit if outliers (i.e., difference with original relation > tolerance)
         orig_relation = (fit_ini_centroids-offset0)/gain0
-        bad_idx = (np.abs(fit_centroids-orig_relation)/err_centroids) > self.tolerance
-        if np.any(bad_idx):
-            log.warning("  Pixel {:4.0f}:  Some centroids are outliers (shown as red points)".format(idx0))
+        BadTolerance_cent_idx = (np.abs(fit_centroids-orig_relation)/err_centroids) > self.tolerance
+
+        bad_cent_idx = np.logical_or(BadChi2_cent_idx, BadTolerance_cent_idx)
+        if np.any(bad_cent_idx):
+            log.warning("  Pixel {:4.0f}:  Chi2 in block > 1.5 or some centroids are outliers (all will be shown as red points)".format(idx0))
             if not self.plots:
                 log.warning("                    Re-run for pixel {:4.0f} with option --plotall to see outliers".format(idx0))
-        else:
-            bad_idx = None
+
 
         # Plot channel energy relation from best fit centroids and true values
         if self.plots:
             rel_figure = plot_utils.plot_relation(fit_ini_centroids, fit_centroids,
-                                                  err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx,
+                                                  err=err_centroids, fit_rel=FitRel, bad_cent=bad_cent_idx,
                                                   stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                   originals=[gain0, offset0])
             rel_figure.suptitle("Channel-Energy Fit for {} ks - pixel {}".format(self.exposure, int(idx0)))
@@ -407,14 +415,14 @@ class FittingEngine(object):
             log.debug("  Pixel {:4.0f}:  Making figure PIX{:0>4}_ch_en_relation.png".format(idx0, int(idx0)))
 
         # Replotting the fit without the centroids with large deviations
-        if np.any(bad_idx):
+        if np.any(bad_cent_idx):
             log.warning("  Pixel {:4.0f}:  Re-fitting relation without outliers".format(idx0))
-            good_idx = np.invert(bad_idx)
+            good_cent_idx = np.invert(bad_cent_idx)
 
             # Initial guess and linear fit with curve fit, like above, but only for the good_idx
             guesses = LinRelPar
-            LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids[good_idx], fit_centroids[good_idx],
-                                             p0=guesses, sigma=err_centroids[good_idx], absolute_sigma=False)
+            LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids[good_cent_idx], fit_centroids[good_cent_idx],
+                                             p0=guesses, sigma=err_centroids[good_cent_idx], absolute_sigma=False)
             LinRelErrors = np.sqrt(np.diag(LinRelCov))
             inv_gain = ufloat(LinRelPar[0], LinRelErrors[0])
             inv_offs = ufloat(LinRelPar[1], LinRelErrors[1])
@@ -425,12 +433,12 @@ class FittingEngine(object):
 
             # Plot channel energy relation from best fit centroids and true values, WITHOUT the bad pixels
             if self.plots:
-                FitRel = np.array(LinearRelation(fit_ini_centroids[good_idx], *LinRelPar))
+                FitRel = np.array(LinearRelation(fit_ini_centroids[good_cent_idx], *LinRelPar))
                 LowBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0] - self.tolerance * LinRelErrors[0],LinRelPar[1] - self.tolerance * LinRelErrors[1]))
                 HighBound = np.array(LinearRelation(fit_ini_centroids, LinRelPar[0] + self.tolerance * LinRelErrors[0],LinRelPar[1] + self.tolerance * LinRelErrors[1]))
 
-                rel_figure = plot_utils.plot_relation(fit_ini_centroids[good_idx], fit_centroids[good_idx],
-                                                      err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None,
+                rel_figure = plot_utils.plot_relation(fit_ini_centroids[good_cent_idx], fit_centroids[good_cent_idx],
+                                                      err=err_centroids[good_cent_idx], fit_rel=FitRel, bad_cent=None,
                                                       stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                       originals=[gain0, offset0])
                 rel_figure.suptitle("Refitted Channel-Energy Fit for {} ks - pixel {}".format(self.exposure, int(idx0)))
@@ -438,5 +446,4 @@ class FittingEngine(object):
                 log.debug("  Pixel {:4.0f}:  Making refitted figure PIX{:0>4}_REFIT_ch_en_relation.png".format(idx0, int(idx0)))
 
         # Return pixel index, best fit gain and offset and their errors
-        return idx0, gain_fit.nominal_value, offs_fit.nominal_value, gain_fit.std_dev, offs_fit.std_dev, FitResult.redchi, LargeErrors
-        # todo: remove LargeErrors --> Deprecated (not useful diagnostic)
+        return idx0, gain_fit.nominal_value, offs_fit.nominal_value, gain_fit.std_dev, offs_fit.std_dev, FitResult.redchi, bad_cent_idx

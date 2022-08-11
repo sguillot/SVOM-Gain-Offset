@@ -405,3 +405,5 @@ if __name__ == '__main__':
             inspec, badpixtable,
             outdir,
             exp=1000, inputrel=inrel)
+
+    os.system('say "The code has finished running"')

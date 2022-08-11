@@ -114,7 +114,7 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,
         ax1.set_xlim(0,95)
 
     # Show bad centroids in RED
-    if bad_cent is not None:
+    if np.any(bad_cent):
         ax1.errorbar(ini[bad_cent],fin[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3, label='excluded')
         ax2.errorbar(ini[bad_cent],fin[bad_cent]-fit_rel[bad_cent],yerr=err[bad_cent],fmt='o', color='red',elinewidth=3, label='excluded')
 
@@ -155,12 +155,10 @@ def plot_block(spec_block,spec_cont,
         for (i,cent) in enumerate(centroids_ini):
             # Initial centroid values
             plt.axvline(x=cent, color='r', linestyle='--',linewidth=1, label='Init. centr.' if i==0 else '')
+            plt.axvline(x=centroids_fit[i], alpha=0.6, color='g', linestyle='-', label='Fit centr.' if i == 0 else '')
             if centroids_err[i] is not None:
                 # Best-fit centroids WITH 3-sigma uncertainties
-                plt.axvspan(cent-tolerance*centroids_err[i], cent+tolerance*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
-            else:
-                # Best-fit centroids WITHOUT uncertainties
-                plt.axvline(x=centroids_fit[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
+                plt.axvspan(centroids_fit[i]-tolerance*centroids_err[i], centroids_fit[i]+tolerance*centroids_err[i], alpha=0.2, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
 
     # Plot the residual of a spectral block
     else:
@@ -169,12 +167,10 @@ def plot_block(spec_block,spec_cont,
         for (i,cent) in enumerate(centroids_ini):
             # Initial centroid values
             plt.axvline(x=cent, color='r', linestyle='--',linewidth=1, label='Init. centr.' if i==0 else '')
+            plt.axvline(x=centroids_fit[i], alpha=0.6, color='g', linestyle='-', label='Fit centr.' if i == 0 else '')
             if centroids_err[i] is not None:
                 # Best-fit centroids WITH 3-sigma uncertainties
-                plt.axvspan(centroids_fit[i]-tolerance*centroids_err[i], centroids_fit[i]+tolerance*centroids_err[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
-            else:
-                # Best-fit centroids WITHOUT uncertainties
-                plt.axvline(x=centroids_fit[i], alpha=0.5, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
+                plt.axvspan(centroids_fit[i]-tolerance*centroids_err[i], centroids_fit[i]+tolerance*centroids_err[i], alpha=0.2, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
 
     return 
 
