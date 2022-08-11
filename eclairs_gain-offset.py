@@ -17,9 +17,7 @@ from multiprocessing import Pool
 from astropy.stats import sigma_clipped_stats
 
 # SVOM SPECIFIC imports
-from svom.io_utils import read_spec
-from svom.io_utils import read_rel
-from svom.io_utils import read_lines
+from svom.io_utils import read_spec, read_badpix, read_rel, read_lines
 from svom.io_utils import write_rel
 # from svom.utils import En2Ch
 # from svom.utils import Ch2En
@@ -66,24 +64,8 @@ __version__ = "0.9.1"
 parser = argparse.ArgumentParser(description=desc)
 parser.add_argument("-c", "--config_file", type=str, help='Config file')
 
-# TODO:  THESE ARGUMENTS SHOULD PROBABLY BE MADE MANDATORY
-# parser.add_argument("--spectra", help="Input spectra (fits file matrix of 6400 spectra)", type=str, default=None)
-# parser.add_argument("--matrix", help="Input Gain-Offset matrix (fits file)", type=str, default=None)
-# parser.add_argument("--lines", help="Input spectral lines to fit in spectra (ascii file...for now)", type=str, default="lines_keV_4blocks.txt")
-# parser.add_argument("--rootname", help="Outputs rootname", type=str, default="Default")
-# OPTIONAL ARGUMENTS
-# parser.add_argument("--tolerance", help="Filtering tolerance (default=4)", type=int, default=4)
-# parser.add_argument("--proc", help="Number of processors (default=1)", type=int, default=1)
-# parser.add_argument("--nbpix", help="Number of pixels to run (default=None, for tests only)", type=range_limited_int, default=None)
-## TODO Pixel choise by intervals or list or whatever...
-# parser.add_argument("--pixels", help="One or more specific pixels to run ([1,6400], default=None, ignored if --nbpix is set)", nargs='+', type=range_limited_int, default=None)
-# parser.add_argument("--plots", help="Makes initial and final plots (default=False)", default=False, action='store_true')
-# parser.add_argument("--plotall", help="Makes all plot along the way, one per pixel (default=False)", default=False, action='store_true')
-# parser.add_argument("--showrawspec", help="Shows the raw spectrum (no Energy redistribution)", default=False, action='store_true')
-# parser.add_argument("--width", help="width (in keV) for energy redistribution", type=float, default=1.1)
-# parser.add_argument("--logfile", help="Name of logfile (default=rootname.log)", type=str, default=None)
-# parser.add_argument("--loglevel", help="Log Level (DEBUG, INFO, WARNING, ERROR, CRITICAL), Default=WARNING", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], default="WARNING")
-## TODO BAD PIXELS
+# TODO:  DEFINE MANDATORY ARGUMENTS
+# TODO:  IMPLEMENT Pixel choice (intervals or list, file ? etc.)
 
 file_arg = parser.parse_args()
 reader = ParamsReader(file_arg.config_file, parser)
@@ -110,7 +92,8 @@ args = reader.load_parameters_file()
 
 # MAIN RUN CALL
 def mainrun(input_relation, output_relation,
-            input_spec, workdir, # outname,
+            input_spec, badpix_file,
+            workdir, # outname,
             exp=None, inputrel=None):
 
     # OUTFILE ROOTNAME (CREATING DIRECTORY IF NEEDED)
@@ -160,6 +143,9 @@ def mainrun(input_relation, output_relation,
     if exposure is not None:
         exp = exposure
 
+    # READ BAD PIXEL TABLE
+    BadPixelTable = read_badpix(badpix_file, outdir, plotmatrix=args.plots)
+
     # SPECTRUM WITHOUT REDISTRIBUTION -- FOR DEVELOPMENT ONLY
     #    Option useful to visualize relative line strength (to use with --plotall)
     if args.showrawspec:
@@ -173,7 +159,6 @@ def mainrun(input_relation, output_relation,
     #  setting the number of pixels to Nb of pixels in spectra matrix file.
     if args.nbpix is not None:
         pix = np.arange(0, args.nbpix)
-        # TODO Figure out how to have pixels with single int, list or range...
         # if args.pixels is not None:
         #     args.pixels = None
         #     log.warning("Ignoring --pixels (conflicting with --nbpix)")
@@ -181,7 +166,6 @@ def mainrun(input_relation, output_relation,
         pix = np.arange(0, len(spectra['pixel']))
         # if args.pixels is not None:
         #     pix = [p-1 for p in args.pixels]
-
 
     ################################################################################
     # Calls the main FittingEngine with either Multiprocessing Pool or simple 'for' loop
@@ -194,13 +178,16 @@ def mainrun(input_relation, output_relation,
             pool = Pool(args.proc)
 
             # Initiates the FittingEngine Object
-            fit_engine = FittingEngine(spectra, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+            fit_engine = FittingEngine(spectra, BadPixelTable, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
             log.info("FittingEngine initialized for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
 
             # Maps the Multiprocessing Pool with the FittingEngine
             # for the selected pixels (default, or from options --nbpix or --pixels)
             idx, final_gains, final_offset, final_gains_err, final_offset_err, LMFit_RedChi2, LMFit_LargeErr = zip(*pool.map(fit_engine, relations0[pix]))
             # FIT ENGINE RETURNS  idx0, gain_fit, offs_fit, gain_err, offs_err, FitResult.redchi, LargeErrors
+
+            # TODO: Logger doesn't work in Multiprocessing Pool
+            #  https://superfastpython.com/multiprocessing-logging-in-python/
 
         finally:  # To make sure processes are closed in the end, even if errors happen
             pool.close()
@@ -227,7 +214,7 @@ def mainrun(input_relation, output_relation,
 #        log.info("Running {} for {} pixels on {} processor (using a 'for' loop)...".format(path.basename(__file__),  len(pix), args.proc))
 
         # Initiates the FittingEngine Object
-        fit_engine = FittingEngine(spectra, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
+        fit_engine = FittingEngine(spectra, BadPixelTable, intervals, centroids, args.width, tempdir, exposure=exp, tolerance=args.tolerance, rawspec=rawspec, plots=args.plotall)
         log.info("FittingEngine initialized for {} pixels on {} processor (using a 'for' loop)...".format(len(pix), args.proc))
 
         # Calls the FittingEngine object for the selected pixels (default, or from options --nbpix or --pixels)
@@ -386,6 +373,8 @@ if __name__ == '__main__':
     filelines   = path.join(workdir, "LINES_INFOS/{}".format(args.lines))
     # Input spectra                    *** for now a background -- will have to come from caldb
     inspec = path.join(workdir, "BACKGROUNDS/{}".format(args.spectra))
+    # Input bad pixel table
+    badpixtable = path.join(workdir, "BADPIXELS/{}".format(args.badpixels))
 
     # Outputs
     # Temporary workspace
@@ -413,6 +402,6 @@ if __name__ == '__main__':
     inrel = path.join(workdir, "RELATION/real_input/exact_Full_matrix_rel_6400pix_1000ks.txt")
 
     mainrun(filerel_in, filerel_out,
-            inspec,
+            inspec, badpixtable,
             outdir,
             exp=1000, inputrel=inrel)

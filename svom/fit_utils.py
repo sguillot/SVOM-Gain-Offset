@@ -80,11 +80,14 @@ def ModelResiduals(params, xdata, ydata, NbGaussPerBlock, weights=False):
 
 class FittingEngine(object):
 
-    def __init__(self, all_spectra, intervals, centroids, width, rootname, exposure=0, tolerance=4, rawspec=None, plots=False):
+    def __init__(self, all_spectra, bad_pixels, intervals, centroids, width, rootname, exposure=0, tolerance=4, rawspec=None, plots=False):
         """Initialize function """            
 
         # ALL SPECTRA (ARRAY OF SPECTRAL ARRAY, ONE FOR EACH PIXEL)
         self.all_spectra = all_spectra
+
+        # Bad Pixel Table
+        self.badpixels = bad_pixels
         
         # RAW SPECTRUM (FOR DEV. ONLY)
         if rawspec is not None:
@@ -124,6 +127,12 @@ class FittingEngine(object):
         if idx0 != self.all_spectra['pixel'][idx0]:
             log.error('Problem with pixel number. Exiting...')
             exit()
+
+        # Check if idx0 is a bad pixel. If yes, return 0
+        if self.badpixels[idx0]:
+            log.info("  Pixel {:4.0f}:  BAD PIXEL".format(idx0))
+            nbgaussians = len(np.concatenate(self.centroids).ravel())
+            return idx0, 0, 0, 0, 0, 0, np.full(nbgaussians, False)
 
         # Background spectrum for pixel idx0
         #     DEV:  GEANT4 BACKGROUND made into a matrix of spectra (columns: "channels", "spectrum")
@@ -198,7 +207,7 @@ class FittingEngine(object):
 
         FitResult = minimize(ModelResiduals, fit_params,
                              args=(xdata, ydata, self.NbGaussians, True),
-                             calc_covar=True, method='least_squares', nan_policy='omit')
+                             calc_covar=True, method='least_squares') #, nan_policy='omit')
 
         # TODO: Check convergence
         # TODO: Check why errors are large sometimes!
@@ -212,7 +221,8 @@ class FittingEngine(object):
         #  fit_sigma = np.array([FitResult.params[key].value for key in FitResult.params if key.startswith("sig")])
 
         if not FitResult.success:
-            log.error('  Pixel {:4.0f}:  FitError - Write a FitError  Exception?'.format(idx0))   ## TODO Write / Catch the FitError exception ?
+            log.error('  Pixel {:4.0f}:  FitError - Write a FitError  Exception?'.format(idx0))
+            # TODO Write / Catch the FitError exception ? or Return 0, 0, 0... ?
             log.error('     Status = {}, Reduced ChiSq = {:.4f}'.format(FitResult.success, FitResult.redchi))
         else:
             log.info('  Pixel {:4.0f}:  Spectral lines fit successful:  Reduced ChiSq = {:.4f} ({:.2f}/{})'.format(idx0, FitResult.redchi, FitResult.chisqr, FitResult.nfree))
@@ -317,26 +327,26 @@ class FittingEngine(object):
             figure1.legend(handles, labels, loc='upper right')
             plt.tight_layout(pad=1.0, w_pad=0.3, h_pad=1.0)
             figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{} vs {:.2f})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree, np.sum(Chi2)))
-            figure1.savefig("{}/spec_blocks_PIX{:0>4}.png".format(self.rootname, int(idx0)))
-            log.debug("  Pixel {:4.0f}:  Making figure spec_blocks_PIX{:0>4}.png".format(idx0, int(idx0)))
-            
+            figure1.savefig("{}/PIX{:0>4}_spec_blocks.png".format(self.rootname, int(idx0)))
+            log.debug("  Pixel {:4.0f}:  Making figure PIX{:0>4}_spec_blocks.png".format(idx0, int(idx0)))
+            plt.close('all')
+
         # Checking uncertainties values of centroids 
         if np.any(err_centroids == 0.0):
-            log.warning("  Pixel {:4.0f} -- Some Gaussians fit have zero uncertainties".format(idx0))
+            log.warning("  Pixel {:4.0f}:  Some Gaussians fit have zero uncertainties".format(idx0))
             err_centroids[err_centroids == 0.0] = np.max(err_centroids)                           # Work around if centroids uncertainty is zero
         if np.any(err_centroids == None):
             err_centroids = None                                                                  # If one of them is None, they are all None.
 
-        # LargeErrors = np.sum((err_centroids/fit_centroids)>0.05)
-        LargeErrors = (err_centroids / fit_centroids) > 0.05 ## 0.05
-        #if LargeErrors.any():
-        #    print(LargeErrors)
+        # DEPRECATED (Not useful diagnostic)
+        # LargeErrors = (err_centroids / fit_centroids) > 0.05
+        LargeErrors = np.full(len(err_centroids), False)
 
         # EXCLUDE CENTROIDS WITH LARGE ERRORS
-        #fit_ini_centroids = self.all_ini_centroids
-        fit_ini_centroids = self.all_ini_centroids[~LargeErrors]
-        fit_centroids = fit_centroids[~LargeErrors]
-        err_centroids = err_centroids[~LargeErrors]
+        fit_ini_centroids = self.all_ini_centroids
+        #fit_ini_centroids = self.all_ini_centroids[~LargeErrors]
+        #fit_centroids = fit_centroids[~LargeErrors]
+        #err_centroids = err_centroids[~LargeErrors]
 
         # Now fitting the linear relation between fitted centroids (in channels)
         #    and true energies of spectral lines
@@ -380,7 +390,7 @@ class FittingEngine(object):
         orig_relation = (fit_ini_centroids-offset0)/gain0
         bad_idx = (np.abs(fit_centroids-orig_relation)/err_centroids) > self.tolerance
         if np.any(bad_idx):
-            log.warning("  Pixel {:4.0f} -- Some centroids are outliers (shown as red points)".format(idx0))
+            log.warning("  Pixel {:4.0f}:  Some centroids are outliers (shown as red points)".format(idx0))
             if not self.plots:
                 log.warning("                    Re-run for pixel {:4.0f} with option --plotall to see outliers".format(idx0))
         else:
@@ -392,9 +402,9 @@ class FittingEngine(object):
                                                   err=err_centroids, fit_rel=FitRel, bad_cent=bad_idx,
                                                   stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                   originals=[gain0, offset0])
-            rel_figure.suptitle("Channel-Energy Fit for {} ks -- pixel {}".format(self.exposure, int(idx0)))
-            rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}.png".format(self.rootname, int(idx0)))
-            log.debug("  Pixel {:4.0f}:  Making figure ch_en_relation_PIX{:0>4}.png".format(idx0, int(idx0)))
+            rel_figure.suptitle("Channel-Energy Fit for {} ks - pixel {}".format(self.exposure, int(idx0)))
+            rel_figure.savefig("{}/PIX{:0>4}_ch_en_relation.png".format(self.rootname, int(idx0)))
+            log.debug("  Pixel {:4.0f}:  Making figure PIX{:0>4}_ch_en_relation.png".format(idx0, int(idx0)))
 
         # Replotting the fit without the centroids with large deviations
         if np.any(bad_idx):
@@ -423,10 +433,10 @@ class FittingEngine(object):
                                                       err=err_centroids[good_idx], fit_rel=FitRel, bad_cent=None,
                                                       stats=[inv_gain, inv_offs], tolerance=self.tolerance,
                                                       originals=[gain0, offset0])
-                rel_figure.suptitle("Refitted Channel-Energy Fit for {} ks -- pixel {}".format(self.exposure, int(idx0)))
-                rel_figure.savefig("{}/ch_en_relation_PIX{:0>4}_REFITTED.png".format(self.rootname, int(idx0)))
-                log.debug("  Pixel {:4.0f}:  Making refitted figure ch_en_relation_PIX{:0>4}_REFITTED.png".format(idx0, int(idx0)))
+                rel_figure.suptitle("Refitted Channel-Energy Fit for {} ks - pixel {}".format(self.exposure, int(idx0)))
+                rel_figure.savefig("{}/PIX{:0>4}_REFIT_ch_en_relation.png".format(self.rootname, int(idx0)))
+                log.debug("  Pixel {:4.0f}:  Making refitted figure PIX{:0>4}_REFIT_ch_en_relation.png".format(idx0, int(idx0)))
 
         # Return pixel index, best fit gain and offset and their errors
         return idx0, gain_fit.nominal_value, offs_fit.nominal_value, gain_fit.std_dev, offs_fit.std_dev, FitResult.redchi, LargeErrors
-        
+        # todo: remove LargeErrors --> Deprecated (not useful diagnostic)

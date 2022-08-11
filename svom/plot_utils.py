@@ -385,6 +385,8 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[0, 1].minorticks_on()
     axes[0, 1].set_ylim(axes[0, 0].get_ylim())
 
+    ## TODO: Ticks Labels are hardcoded for 14 centroids!!! Fix this!
+
     # Plots for offset
     # Best-fit offset
     #axes[1, 0].scatter(indices, LargeErr, marker='.', color='green', label='Reduced Chi Square')

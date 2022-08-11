@@ -17,7 +17,7 @@ import svom.plot_utils as plot_utils
 #####################################
 
 ### READING INPUT GAIN-OFFSET RELATION FROM FITS FILE
-def read_rel(filename,rootname, randomize=False,plotmatrix=False):
+def read_rel(filename, rootname, randomize=False, plotmatrix=False):
     
     matrixfile = fits.open(filename)
     rel_data = matrixfile[1].data 
@@ -50,10 +50,10 @@ def read_rel(filename,rootname, randomize=False,plotmatrix=False):
     except:
         log.error("Error stacking the table of gain/offsets from fits file. Exiting!")
         exit()
-        
+
 
 ### READING INPUT FITS FILE WITH ALL SPECTRA
-def read_spec(filename,rootname,plotspec=False):
+def read_spec(filename, rootname, plotspec=False):
     
     evtfile = fits.open(filename)
     evtdata = evtfile[1].data
@@ -77,10 +77,27 @@ def read_spec(filename,rootname,plotspec=False):
     return evtdata, Exposure
 
 
+### READING BAD PIXEL TABLE FROM FITS FILE
+def read_badpix(filename, rootname, plotmatrix=False):
+
+    # TODO: Open and process file depending on file format!
+    #badpixfile = fits.open(filename)
+    #badpixtable = badpixfile[1].data
+    log.info("Bad pixel table {} loaded".format(path.basename(filename)))
+
+    if plotmatrix:
+        log.warning("Plot bad pixel table not implement yet...")
+
+    # PLACEHOLDER UNTIL EXAMPLE BADPIX FILE IS AVAILABLE
+    badpixtable = np.full(6400, False)
+    #badpixtable[2] = True
+    return badpixtable
+
+
 ### DEVELOPMENT ONLY 
 ##    INPUT SPECTRUM WITHOUT REDISTRIBUTION
 ##    THE ONE USED TO GENERATE THE INPUT MATRIX
-def read_rawspec(filename,rootname, plotspec=False):
+def read_rawspec(filename, rootname, plotspec=False):
     
     evtfile = fits.open(filename)
     evtdata = evtfile[1].data
@@ -93,6 +110,7 @@ def read_rawspec(filename,rootname, plotspec=False):
         spec_fig.savefig('{}/input_spectrum_energy_NoRedist.png'.format(rootname),dpi=100)
                                    
     return evtdata
+
 
 ### READING INPUT FILE WITH LINE CENTROID INFO 
 def read_lines(filename):
