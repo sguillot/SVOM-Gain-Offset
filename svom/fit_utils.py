@@ -314,7 +314,7 @@ class FittingEngine(object):
                                       np.array(centroid_ch), block_centroids, block_err_centroids, tolerance=self.tolerance)
                 # TODO: Check why sum(Chi2) is different from the LMFIT-Chi2
                 ax1.text(0.3, 0.93, '{:.2f} ({:.2f}/{})'.format(BlockRedChi2[i], BlockChi2[i], BlockDoF[i]),
-                         color = 'r' if BlockRedChi2[i]>1.5 else 'b',
+                         color = 'r' if BlockRedChi2[i]>2.0 else 'b',
                          horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
 
                 # Plot residuals, initial centroids, and best-fit centroids with uncertainties, for the current block 
@@ -384,12 +384,12 @@ class FittingEngine(object):
         #                                                          maxiters=3, sigma_lower=3, sigma_upper=3)  # Calculate the statistics of centroids values
         # bad_cent_idx = (np.abs(fit_centroids-FitRel)) > (cent_mean+4.0*cent_stddev)                              # Get the indices of those that deviate by >4 sigma
 
-        # Exclude Centroids from linear fit if Chi2 of block > 1.5
+        # Exclude Centroids from linear fit if Chi2 of block > 2.0
         BadChi2_cent_idx = np.full(nbgaussians, False)
         tmp_idx = 0
         for (i, interval) in enumerate(self.intervals):
             for (j, cen) in enumerate(self.centroids[i]):
-                if BlockRedChi2[i]>1.5:
+                if BlockRedChi2[i]>2.0:
                     BadChi2_cent_idx[tmp_idx]= True
                 tmp_idx=tmp_idx+1
 
@@ -399,7 +399,7 @@ class FittingEngine(object):
 
         bad_cent_idx = np.logical_or(BadChi2_cent_idx, BadTolerance_cent_idx)
         if np.any(bad_cent_idx):
-            log.warning("  Pixel {:4.0f}:  Chi2 in block > 1.5 or some centroids are outliers (all will be shown as red points)".format(idx0))
+            log.warning("  Pixel {:4.0f}:  Chi2 in block > 2.0 or some centroids are outliers (all will be shown as red points)".format(idx0))
             if not self.plots:
                 log.warning("                    Re-run for pixel {:4.0f} with option --plotall to see outliers".format(idx0))
 

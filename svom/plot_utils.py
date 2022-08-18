@@ -16,7 +16,7 @@ from svom.utils import Ch2En
 
 # BASIC ENERGY SPECTRUM (LINER AND LOG SPACE)
 def plot_spec_en(energy, cts):
-    
+
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
     fig.suptitle("Input energy spectrum (linear and log scales)")
 
@@ -24,25 +24,25 @@ def plot_spec_en(energy, cts):
     ax[0].set_ylabel('Nb counts')
     ax[0].plot(energy, cts)
     ax[0].set_xlim(1, 110)
-    
+
     ax[1].set_xlabel('(energy (keV)')
     ax[1].set_ylabel('Nb counts')
     ax[1].loglog(energy, cts)
     ax[1].set_xlim(1, 110)
-    
+
     return fig
 
 
 # BASIC CHANNEL SPECTRUM (LINER AND LOG SPACE)
 def plot_spec_ch(chan, cts):
-    
+
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
     fig.suptitle("Input channel spectrum (linear and log scales)")
-    
+
     ax[0].set_xlabel('channels')
     ax[0].set_ylabel('Nb counts')
     ax[0].plot(chan, cts)
-    
+
     ax[1].set_xlabel('channels')
     ax[1].set_ylabel('Nb counts')
     ax[1].loglog(chan, cts)
@@ -55,7 +55,7 @@ def plot_matrix(gains, offsets):
 
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12, 7))
     # fig.tight_layout()
-    
+
     # ax[0].set_xlabel('')
     # ax[0].set_ylabel('')
     ax[0].set_title('GAINS (in keV/channel)')
@@ -81,7 +81,7 @@ def plot_raw(spec_raw, centroids_ini):
     plt.plot(spec_raw[:, 0], spec_raw[:, 1], label='rawspec')
     for (i, cent) in enumerate(centroids_ini):
         plt.axvline(x=cent, color='r', linestyle='--', linewidth=1, label='Init. centr.' if i == 0 else '')
-    return 
+    return
 
 
 # Relation channel-energy fits
@@ -95,7 +95,7 @@ def plot_relation(ini,fin,err=None,fit_rel=None,bad_cent=None,
     ax1 = plt.subplot(211)
     ax1.errorbar(ini,fin,yerr=err,fmt='.', label='centroids')
     ax1.set_ylabel('channel')
-    
+
     if fit_rel is not None:
         # Plot best-fit relation (line fit_rel)
         ax1.plot(ini,fit_rel, color='orange', label='Fit relation')
@@ -147,7 +147,7 @@ def plot_block(spec_block,spec_cont,
     if only_residuals==False:
         plt.errorbar(spec_block[:,0],spec_block[:,1],yerr=np.sqrt(spec_block[:,1]),label='spectrum')    # plots the data (with error bars)
         plt.plot(spec_block[:,0],cont_func,color='orange',zorder=5,label='continuum')                   # plots the continuum
-        plt.plot(spec_block[:,0],guess_func,'-.',color='black',zorder=5,label='guess')                  # plots the initial guess function 
+        plt.plot(spec_block[:,0],guess_func,'-.',color='black',zorder=5,label='guess')                  # plots the initial guess function
         plt.plot(spec_cont[:,0],spec_cont[:,1], 'o', color='black',zorder=5,label='spec. cont.')        # plots the points used for continuum guesses
         plt.plot(spec_block[:,0],fit_func,color='red', zorder=10, label='best fit')                     # plots the best-fit function
 
@@ -172,7 +172,7 @@ def plot_block(spec_block,spec_cont,
                 # Best-fit centroids WITH 3-sigma uncertainties
                 plt.axvspan(centroids_fit[i]-tolerance*centroids_err[i], centroids_fit[i]+tolerance*centroids_err[i], alpha=0.2, color='g',linestyle='-', label='Fit centr.' if i==0 else '')
 
-    return 
+    return
 
 
 ###############################################################
@@ -183,7 +183,7 @@ def plot_block(spec_block,spec_cont,
 def plot_difference(diff_gains, diff_offset, bins=30):
 
     fig = plt.figure(figsize=(12, 9))
-    
+
     # Plots the difference in gain
     ax0 = plt.subplot(211)
     ax0.hist(diff_gains, bins=bins)
@@ -195,7 +195,7 @@ def plot_difference(diff_gains, diff_offset, bins=30):
     ax1.hist(diff_offset, bins=bins)
     ax1.axvline(x=0.0, color='red')
     ax1.set_xlabel("Offset difference (% difference)")
-    
+
     return fig
 
 
@@ -207,7 +207,7 @@ def plot_comparison(indices,                                        # Index for 
                     pix_over_specs=None):                           # Flagged pixels with reconstruction difference over specs    -- For development only
 
     # fig = plt.figure(figsize = (12,9))
-    fig, axes = plt.subplots(2, 2,  gridspec_kw={'width_ratios': [4, 1]}, figsize=(12,8))
+    fig, axes = plt.subplots(2, 2, gridspec_kw={'width_ratios': [4, 1]}, figsize=(12,8))
     plt.subplots_adjust(wspace=0.00)
 
     # Plots for gain
@@ -281,15 +281,15 @@ def plot_reconstruction(gain,offset,
 
     # Energies at which to calculate the pass fraction and make five histogram subplots
     SelectE = np.array([4,15,50,80,150])
-    
+
     fig = plt.figure(figsize=(12, 8))
-    
+
     ax0 = plt.subplot2grid((2, len(SelectE)), (0, 0), rowspan=1, colspan=len(SelectE))
     ax0.set_ylim([0,1.1*yaxis_max])
 
     # Table to store the reconstruction errors at the given Selected energies (for histogram subplots)
     reconst_err = np.zeros(shape=(len(gain),len(SelectE)))
-    
+
     # Calculate and plot reconstruct error/uncertainty for each pixel
     for (i,g) in enumerate(gain):
         # Get energy and uncertainty from gain, offset and their uncertainties
@@ -328,7 +328,7 @@ def plot_reconstruction(gain,offset,
         ax = plt.subplot2grid((2, len(SelectE)), (1, j), rowspan=1, colspan=1, yticklabels=[])
         ax.hist(reconst_err[:,j], bins=30)
         ax.set_xlabel('Reconst. error at {:0.1f} keV'.format(E))
-        
+
         low_y, high_y = ax.get_ylim()
         low_x, high_x = ax.get_xlim()
 
@@ -343,7 +343,7 @@ def plot_reconstruction(gain,offset,
                 ax.axvline(x=highband_thres, color='r')
 
         # Writes "Pass fraction" on the histrogram subplots
-        txt = ax.text(0.1*(high_x-low_x), 0.9*high_y,"{:0.2f}% pass".format(100*NbPass/len(gain)),fontsize=12)
+        txt = ax.text(0.1*(high_x-low_x), 0.9*high_y,"{:0.4f}% pass".format(100*NbPass/len(gain)),fontsize=12)
         txt.set_bbox(dict(facecolor='white', alpha=0.7))
 
     pix_over_specs = np.unique(pix_over_specs)
@@ -354,11 +354,16 @@ def plot_reconstruction(gain,offset,
 # Comparison of best fit gain/offset for all pixels
 def plot_fit_stats(indices,                                        # Index for the pixels
                    redchi2,
+                   # todo Rename LargeErr
                    LargeErr,
                    cent):
 
     # Color for False and True
     binary_cmap = matplotlib.colors.ListedColormap(['white', 'red'])
+
+    # Input Centroid energies
+    labels_centroids = ["{:.2f} keV".format(e) for e in np.concatenate(cent).ravel()]
+    nbCentroids = len(labels_centroids)
 
     # fig = plt.figure(figsize = (12,9))
     fig, axes = plt.subplots(2, 2,  gridspec_kw={'width_ratios': [4, 1]})
@@ -372,7 +377,7 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[0, 0].minorticks_on()
     axes[0, 0].grid(which='minor', axis='x', linewidth=0.5, alpha=0.5)
     axes[0, 0].set_ylabel("Reduced Chi Square")
-    axes[0, 0].set_xlim(0, axes[0, 0].get_xlim()[1])
+    axes[0, 0].set_xlim(0, axes[0, 0].get_xlim()[1]+1)
     axes[0, 0].set_ylim(0.6,1.6)
 
     axes[0, 1].hist(redchi2, bins=50, orientation='horizontal')
@@ -381,32 +386,28 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[0, 1].minorticks_on()
     axes[0, 1].set_ylim(axes[0, 0].get_ylim())
 
-    ## TODO: Ticks Labels are hardcoded for 14 centroids!!! Fix this!
-
     # Plots for offset
     # Best-fit offset
     #axes[1, 0].scatter(indices, LargeErr, marker='.', color='green', label='Reduced Chi Square')
     #axes[1, 0].imshow(LargeErr.T, interpolation='none', aspect='auto', cmap=binary_cmap)
     LargeErrIdx = np.argwhere(LargeErr==1)
-    axes[1, 0].scatter(LargeErrIdx[:,0],LargeErrIdx[:,1], s=1.0, marker='s', color='red')
+    axes[1, 0].scatter(LargeErrIdx[:,0],LargeErrIdx[:,1], s=2.0, marker='s', color='red')
     axes[1, 0].tick_params(bottom=True, top=False, left=True, right=False)
     axes[1, 0].tick_params(labelbottom=True, labeltop=False, labelleft=True, labelright=False)
     # Grid and ticks
-    axes[1, 0].minorticks_on()
+    axes[1, 0].minorticks_off()
     axes[1, 0].set_xlabel("Pixel number")
     axes[1, 0].set_ylabel("Centroids w/ Large % error")
-    #axes[1, 0].set_yticks(np.arange(0,15,2), np.arange(1,16,2) )  ## MATPLOTLIB 3.5
-    axes[1, 0].set_yticks(np.arange(0,15,2))                       ## MATPLOTLIB 3.4
-    axes[1, 0].set_yticklabels(np.arange(1,16,2) )                 ## MATPLOTLIB 3.4
+    #axes[1, 0].set_yticks(np.arange(0,nbCentroids,1), np.arange(1,nbCentroids+1,1) )  ## MATPLOTLIB 3.5
+    axes[1, 0].set_yticks(np.arange(0,nbCentroids,1))                                  ## MATPLOTLIB 3.4
+    axes[1, 0].set_yticklabels(np.arange(1,nbCentroids+1,1) )                            ## MATPLOTLIB 3.4
+    axes[1, 0].yaxis.set_tick_params(labelsize=8)
     axes[1, 0].grid(which='major', axis='x', linewidth=0.7, alpha=1.0)
-    axes[1, 0].grid(which='minor', axis='x', linewidth=0.5, alpha=0.5)
+    #axes[1, 0].grid(which='minor', axis='x', linewidth=0.5, alpha=0.5)
     axes[1, 0].grid(which='major', axis='y', linewidth=0.7, alpha=1.0)
     axes[1, 0].set_xlim(axes[0, 0].get_xlim())
-    axes[1, 0].set_ylim(-0.5,14)
+    axes[1, 0].set_ylim(-0.5,nbCentroids)
     #axes[1, 0].invert_yaxis()
-
-    # Input Centroid energies
-    labels_centroids = ["{:.2f} keV".format(e) for e in np.concatenate(cent).ravel()]
 
     centroids = np.arange(0,len(LargeErr[0]),1)
     a = np.sum(LargeErr, axis=0)
@@ -414,8 +415,8 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[1, 1].tick_params(bottom=True, top=False, left=True, right=False)
     axes[1, 1].tick_params(labelbottom=True, labeltop=False, labelleft=False, labelright=True)
     #axes[1, 1].minorticks_off()
-    #axes[1, 1].set_yticks(np.arange(0,15,1), centroids)     ## MATPLOTLIB 3.5
-    axes[1, 1].set_yticks(np.arange(0,14,1))                 ## MATPLOTLIB 3.4
+    #axes[1, 1].set_yticks(np.arange(0,nbCentroids,1), labels_centroids)     ## MATPLOTLIB 3.5
+    axes[1, 1].set_yticks(np.arange(0,nbCentroids,1))        ## MATPLOTLIB 3.4
     axes[1, 1].set_yticklabels(labels_centroids)             ## MATPLOTLIB 3.4
     axes[1, 1].set_ylim(axes[1, 0].get_ylim())
     axes[1, 1].yaxis.set_tick_params(labelsize=7)

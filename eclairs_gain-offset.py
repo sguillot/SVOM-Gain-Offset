@@ -38,6 +38,7 @@ Inputs include:
  * fits file with the spectra from the 6400 pixels
  * fits file for the gain-offset matrix
  * ascii file of line centroids to fit (to be replace by fits file?)
+ * fits file for bad pixels table
 
 Output include:
  * fits file of the new gain-offset matrix
@@ -46,7 +47,7 @@ Output include:
  * ??? anything more ???
 
 """
-__version__ = "0.9.1"
+__version__ = "0.9.5"
 
 # def range_limited_int(arg):
 #     """ Type function for argparse - an int within some predefined bounds """
