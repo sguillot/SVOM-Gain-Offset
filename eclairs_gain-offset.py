@@ -184,7 +184,7 @@ def mainrun(input_relation, output_relation,
 
             # Maps the Multiprocessing Pool with the FittingEngine
             # for the selected pixels (default, or from options --nbpix or --pixels)
-            idx, final_gains, final_offset, final_gains_err, final_offset_err, LMFit_RedChi2, LMFit_LargeErr = zip(*pool.map(fit_engine, relations0[pix]))
+            idx, final_gains, final_offset, final_gains_err, final_offset_err, LMFit_RedChi2, LMFit_BadCentroids = zip(*pool.map(fit_engine, relations0[pix]))
             # FIT ENGINE RETURNS  idx0, gain_fit, offs_fit, gain_err, offs_err, FitResult.redchi, LargeErrors
 
             # TODO: Logger doesn't work in Multiprocessing Pool
@@ -200,7 +200,7 @@ def mainrun(input_relation, output_relation,
         final_gains_err = np.asarray(final_gains_err)
         final_offset_err = np.asarray(final_offset_err)
         LMFit_RedChi2 = np.asarray(LMFit_RedChi2)
-        LMFit_LargeErr = np.asarray(LMFit_LargeErr)
+        LMFit_BadCentroids = np.asarray(LMFit_BadCentroids)
 
     else:
 
@@ -210,7 +210,7 @@ def mainrun(input_relation, output_relation,
         final_gains_err = np.zeros(len(pix))
         final_offset_err = np.zeros(len(pix))
         LMFit_RedChi2 = np.zeros(len(pix))
-        LMFit_LargeErr = np.zeros(( len(pix),len(np.concatenate(centroids).ravel())) )
+        LMFit_BadCentroids = np.zeros(( len(pix),len(np.concatenate(centroids).ravel())) )
 
 #        log.info("Running {} for {} pixels on {} processor (using a 'for' loop)...".format(path.basename(__file__),  len(pix), args.proc))
 
@@ -220,14 +220,14 @@ def mainrun(input_relation, output_relation,
 
         # Calls the FittingEngine object for the selected pixels (default, or from options --nbpix or --pixels)
         for i, idet in enumerate(tqdm.tqdm(relations0[pix], total=len(pix), position=0, leave=True)):
-            tmp_idx, tmp_final_gains, tmp_final_offset, tmp_final_gains_err, tmp_final_offset_err, tmp_LMFit_RedChi2, tmp_LMFit_LargeErr = fit_engine(idet)
+            tmp_idx, tmp_final_gains, tmp_final_offset, tmp_final_gains_err, tmp_final_offset_err, tmp_LMFit_RedChi2, tmp_LMFit_BadCentroids = fit_engine(idet)
             idx[i] = tmp_idx
             final_gains[i] = tmp_final_gains
             final_offset[i] = tmp_final_offset
             final_gains_err[i] = tmp_final_gains_err
             final_offset_err[i] = tmp_final_offset_err
             LMFit_RedChi2[i] = tmp_LMFit_RedChi2
-            LMFit_LargeErr[i,:] = tmp_LMFit_LargeErr
+            LMFit_BadCentroids[i,:] = tmp_LMFit_BadCentroids
             #data_output.append(np.array(output))
 
     log.info("Terminated in {:0.1f} sec".format(time.time()-t0))
@@ -300,7 +300,7 @@ def mainrun(input_relation, output_relation,
         comp_fig.savefig("{}/gain_offset_comparisons.png".format(outdir))
 
         # Fit Statistics figure
-        fitstat_fig = plot_utils.plot_fit_stats(indices, LMFit_RedChi2, LMFit_LargeErr, centroids)
+        fitstat_fig = plot_utils.plot_fit_stats(indices, LMFit_RedChi2, LMFit_BadCentroids, centroids)
         fitstat_fig.suptitle("Fit Statistics - {} pixels - Exposure: {} ks".format(len(pix), exp))
         fitstat_fig.savefig("{}/fit_statistics.png".format(outdir))
 

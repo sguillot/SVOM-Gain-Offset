@@ -17,6 +17,8 @@ from uncertainties import ufloat
 from scipy.optimize import curve_fit
 from scipy.stats import chisquare
 
+# from sklearn import linear_model
+
 # LMFIT
 # from lmfit import Model
 # import lmfit.models as models
@@ -44,6 +46,26 @@ def LinearRelation(x, *params):
 def gauss(x, amp, cen, sigma):
     """Single Gaussian lineshape."""
     return amp * np.exp(-(x-cen)**2 / (2.*sigma**2))
+
+
+def LinearBlockModel(params, x):
+    """ ....  """
+    # Define line (linear relation)
+    model = params['gain'] * x + params['offset']
+
+    return model
+
+
+def LinearModelResiduals(params, xdata, ydata, yerr=None):
+    """Calculate total residuals for fits of linear relation."""
+
+    if yerr is None:
+        residuals = ydata - LinearBlockModel(params, xdata)
+    else:
+        residuals = (ydata - LinearBlockModel(params, xdata)) / (yerr)
+
+    # Return the 1D array of residuals (as required by minimize() function)
+    return residuals
 
 
 def BlockModel(params, x, i, nb):
@@ -194,7 +216,6 @@ class FittingEngine(object):
             ydata.append(y)
 
         # Adding 0.5 channel to xdata (as float) to represent the centers of the channels.
-        # TODO: Raises a VisibleDeprecationWarning - this could be fixed
         xdata = np.array(xdata) + 0.5
         ydata = np.array(ydata)
 
@@ -209,7 +230,6 @@ class FittingEngine(object):
                              args=(xdata, ydata, self.NbGaussians, True),
                              calc_covar=True, method='least_squares') #, nan_policy='omit')
 
-        # TODO: Check convergence
         # TODO: Check why errors are large sometimes!
         for param in FitResult.params.values():
             blockNb = int(param.name.split('_')[1]) + 1
@@ -221,9 +241,9 @@ class FittingEngine(object):
         #  fit_sigma = np.array([FitResult.params[key].value for key in FitResult.params if key.startswith("sig")])
 
         if not FitResult.success:
-            log.error('  Pixel {:4.0f}:  FitError - Write a FitError  Exception?'.format(idx0))
-            # TODO Write / Catch the FitError exception ? or Return 0, 0, 0... ?
+            log.error('  Pixel {:4.0f}:  FitError'.format(idx0))
             log.error('     Status = {}, Reduced ChiSq = {:.4f}'.format(FitResult.success, FitResult.redchi))
+            return idx0, 0, 0, 0, 0, 0, np.full(nbgaussians, False)
         else:
             log.info('  Pixel {:4.0f}:  Spectral lines fit successful:  Reduced ChiSq = {:.4f} ({:.2f}/{})'.format(idx0, FitResult.redchi, FitResult.chisqr, FitResult.nfree))
 
@@ -363,8 +383,27 @@ class FittingEngine(object):
         #   Output:  gain in chan/keV, offset in channels            
         LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids, fit_centroids,
                                          p0=guesses, sigma=err_centroids, absolute_sigma=False)
+        # LinRelPar, LinRelCov, infodict, errmsg, ier = curve_fit(LinearRelation, fit_ini_centroids, fit_centroids,
+        #                                  p0=guesses, sigma=err_centroids, absolute_sigma=False,
+        #                                  full_output=True)
         # LinRelPar, LinRelCov = curve_fit(LinearRelation, fit_ini_centroids, fit_centroids,
         #                                  p0=guesses, sigma=None, absolute_sigma=False)
+
+        # LMFIT
+        # linear_fit_params = Parameters()
+        # linear_fit_params.add('gain', value=gain0)
+        # linear_fit_params.add('offset', value=offset0)
+        # LinearFitResult = minimize(LinearModelResiduals, linear_fit_params,
+        #                      args=(fit_ini_centroids, fit_centroids, None),
+        #                      calc_covar=True, method='least_squares') #, nan_policy='omit')
+        # LinearFitResult_withErr = minimize(LinearModelResiduals, linear_fit_params,
+        #                      args=(fit_ini_centroids, fit_centroids, err_centroids),
+        #                      calc_covar=True, method='least_squares') #, nan_policy='omit')
+
+        # SKLEARN
+        # linearmodel = linear_model.LinearRegression()
+        # xdata_sklearn = fit_ini_centroids.reshape(-1, 1)
+        # linearmodel.fit(xdata_sklearn, fit_centroids, sample_weight=1/err_centroids)
 
         #  Uncertainties are the square of the diagonal indices of the covariance matrix
         LinRelErrors = np.sqrt(np.diag(LinRelCov))

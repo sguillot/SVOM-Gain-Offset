@@ -352,10 +352,9 @@ def plot_reconstruction(gain,offset,
 
 
 # Comparison of best fit gain/offset for all pixels
-def plot_fit_stats(indices,                                        # Index for the pixels
+def plot_fit_stats(indices,                         # Index for the pixels
                    redchi2,
-                   # todo Rename LargeErr
-                   LargeErr,
+                   outliers,
                    cent):
 
     # Color for False and True
@@ -388,10 +387,10 @@ def plot_fit_stats(indices,                                        # Index for t
 
     # Plots for offset
     # Best-fit offset
-    #axes[1, 0].scatter(indices, LargeErr, marker='.', color='green', label='Reduced Chi Square')
-    #axes[1, 0].imshow(LargeErr.T, interpolation='none', aspect='auto', cmap=binary_cmap)
-    LargeErrIdx = np.argwhere(LargeErr==1)
-    axes[1, 0].scatter(LargeErrIdx[:,0],LargeErrIdx[:,1], s=2.0, marker='s', color='red')
+    #axes[1, 0].scatter(indices, outliers, marker='.', color='green', label='Reduced Chi Square')
+    #axes[1, 0].imshow(outliers.T, interpolation='none', aspect='auto', cmap=binary_cmap)
+    outliers_idx = np.argwhere(outliers == 1)
+    axes[1, 0].scatter(outliers_idx[:,0],outliers_idx[:,1], s=2.0, marker='s', color='red')
     axes[1, 0].tick_params(bottom=True, top=False, left=True, right=False)
     axes[1, 0].tick_params(labelbottom=True, labeltop=False, labelleft=True, labelright=False)
     # Grid and ticks
@@ -409,8 +408,8 @@ def plot_fit_stats(indices,                                        # Index for t
     axes[1, 0].set_ylim(-0.5,nbCentroids)
     #axes[1, 0].invert_yaxis()
 
-    centroids = np.arange(0,len(LargeErr[0]),1)
-    a = np.sum(LargeErr, axis=0)
+    centroids = np.arange(0, len(outliers[0]), 1)
+    a = np.sum(outliers, axis=0)
     axes[1, 1].barh(centroids, width=a)
     axes[1, 1].tick_params(bottom=True, top=False, left=True, right=False)
     axes[1, 1].tick_params(labelbottom=True, labeltop=False, labelleft=False, labelright=True)
