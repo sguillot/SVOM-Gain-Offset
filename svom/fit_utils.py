@@ -228,7 +228,7 @@ class FittingEngine(object):
 
         FitResult = minimize(ModelResiduals, fit_params,
                              args=(xdata, ydata, self.NbGaussians, True),
-                             calc_covar=True, method='least_squares') #, nan_policy='omit')
+                             calc_covar=True, method='least_squares', nan_policy='omit')
 
         # TODO: Check why errors are large sometimes!
         for param in FitResult.params.values():
@@ -268,7 +268,7 @@ class FittingEngine(object):
                     BlockDoF[i] = BlockDoF[i] - 1
 
             # Defines the best-fit model (continuum+Gaussian) for current block i
-            bestfit = BlockModel(FitResult.params, spec_block[:, 0], i, self.NbGaussians[i])
+            bestfit = BlockModel(FitResult.params, spec_block[:, 0]+0.5, i, self.NbGaussians[i])
             BlockChi2[i] = np.sum((spec_block[:, 1] - bestfit) ** 2 / spec_block[:, 1])
             BlockRedChi2[i] = BlockChi2[i]/BlockDoF[i]
 
@@ -280,14 +280,14 @@ class FittingEngine(object):
             for (i, interval) in enumerate(self.intervals):
     
                 # Convert centroids and intervals into channel, assuming input gain and offset
-                centroid = self.centroids[i]                        # get numpy array of centroids for that line block
+                centroid = self.centroids[i]                          # get numpy array of centroids for that line block
                 interval_ch, _  = En2Ch(interval, gain0, offset0)     # convert interval  in energy to channels
                 centroid_ch, _  = En2Ch(centroid, gain0, offset0)     # convert centroids in energy to channels
 
                 # Use masks to select the channel range of current block  
                 mask_block = (spectrum[:, 0] >= interval_ch[0]) & (spectrum[:, 0] <= interval_ch[1])
                 spec_block = spectrum[mask_block]
-                x = spec_block[:, 0]
+                x = spec_block[:, 0]+0.5
 
                 # Defines the initial guess model (continuum+Gaussian) for current block i
                 initguess = BlockModel(fit_params, x, i, self.NbGaussians[i])
@@ -332,7 +332,7 @@ class FittingEngine(object):
                 plot_utils.plot_block(spec_block, spec_block[[0, -1]],
                                       continuum, bestfit, initguess,
                                       np.array(centroid_ch), block_centroids, block_err_centroids, tolerance=self.tolerance)
-                # TODO: Check why sum(Chi2) is different from the LMFIT-Chi2
+
                 ax1.text(0.3, 0.93, '{:.2f} ({:.2f}/{})'.format(BlockRedChi2[i], BlockChi2[i], BlockDoF[i]),
                          color = 'r' if BlockRedChi2[i]>2.0 else 'b',
                          horizontalalignment='center', verticalalignment='center', transform=ax1.transAxes)
@@ -356,7 +356,7 @@ class FittingEngine(object):
             handles, labels = ax1.get_legend_handles_labels()
             figure1.legend(handles, labels, loc='upper right')
             plt.tight_layout(pad=1.0, w_pad=0.3, h_pad=1.0)
-            figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{} vs {:.2f})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree, np.sum(BlockChi2)))
+            figure1.suptitle("Line fits by blocks for {} ks - pixel {} - RedChiSq = {:.4f} ({:.2f}/{})".format(self.exposure, int(idx0), FitResult.redchi, FitResult.chisqr, FitResult.nfree))
             figure1.savefig("{}/PIX{:0>4}_spec_blocks.png".format(self.rootname, int(idx0)))
             log.debug("  Pixel {:4.0f}:  Making figure PIX{:0>4}_spec_blocks.png".format(idx0, int(idx0)))
             plt.close('all')
