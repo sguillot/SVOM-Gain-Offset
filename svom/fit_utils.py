@@ -87,8 +87,10 @@ def ModelResiduals(params, xdata, ydata, NbGaussPerBlock, weights=False):
     """Calculate total residual for fits of Gaussians to several data sets."""
     
     ndata = len(NbGaussPerBlock)
-    resid = 0.0*ydata[:]
-          
+    resid = []
+    for yd in ydata:
+        resid.append(np.zeros(len(yd)))
+
     # Calculate residual per data block, with or without uncertainties weights, i.e., sqrt(ydata)
     for i in range(ndata):
         if not weights:
@@ -216,8 +218,8 @@ class FittingEngine(object):
             ydata.append(y)
 
         # Adding 0.5 channel to xdata (as float) to represent the centers of the channels.
-        xdata = np.array(xdata) + 0.5
-        ydata = np.array(ydata)
+        for i,xlist in enumerate(xdata):
+            xdata[i] = xlist + 0.5
 
         # DO THE FIT WITH LMFIT.MINIMIZE
         #   This minimizes the ModelResiduals given the xdata, ydata (of the blocks),
